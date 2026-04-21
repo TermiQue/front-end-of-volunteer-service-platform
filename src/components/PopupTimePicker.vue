@@ -180,8 +180,8 @@ function confirm() {
 }
 
 .btn-primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
+  color: #422006;
+  background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
 }
 
 .btn-secondary {

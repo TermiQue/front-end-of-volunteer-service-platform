@@ -9,9 +9,15 @@
         <view class="panel-title">{{ title }}</view>
 
         <view class="calendar-head">
-          <view class="month-btn" @tap="changeMonth(-1)">上一月</view>
+          <view class="nav-group nav-left">
+            <view class="month-btn" @tap="changeYear(-1)"><<</view>
+            <view class="month-btn" @tap="changeMonth(-1)"><</view>
+          </view>
           <view class="month-label">{{ viewYear }}年{{ String(viewMonth + 1).padStart(2, '0') }}月</view>
-          <view class="month-btn" @tap="changeMonth(1)">下一月</view>
+          <view class="nav-group nav-right">
+            <view class="month-btn" @tap="changeMonth(1)">></view>
+            <view class="month-btn" @tap="changeYear(1)">>></view>
+          </view>
         </view>
 
         <view class="week-row">
@@ -97,6 +103,12 @@ const dayCells = computed<DayCell[]>(() => {
     cells.push({ key: `tail-${index}`, day: null, date: '' })
   }
 
+  // Keep calendar panel height stable across month switches by always rendering 6 rows.
+  while (cells.length < 42) {
+    const index = cells.length
+    cells.push({ key: `pad-${index}`, day: null, date: '' })
+  }
+
   return cells
 })
 
@@ -143,6 +155,12 @@ function closePopup() {
 
 function changeMonth(offset: number) {
   const next = new Date(viewYear.value, viewMonth.value + offset, 1)
+  viewYear.value = next.getFullYear()
+  viewMonth.value = next.getMonth()
+}
+
+function changeYear(offset: number) {
+  const next = new Date(viewYear.value + offset, viewMonth.value, 1)
   viewYear.value = next.getFullYear()
   viewMonth.value = next.getMonth()
 }
@@ -216,13 +234,38 @@ function confirm() {
   margin-bottom: 16rpx;
 }
 
+.nav-group {
+  width: 152rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.nav-left {
+  justify-content: flex-start;
+}
+
+.nav-right {
+  justify-content: flex-end;
+}
+
 .month-btn {
+  width: 72rpx;
+  height: 60rpx;
+  border-radius: 10rpx;
+  background: #fef9c3;
+  border: 1rpx solid #fde68a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 24rpx;
-  color: #2b7a78;
-  padding: 10rpx 12rpx;
+  color: #a16207;
+  font-weight: 700;
 }
 
 .month-label {
+  flex: 1;
+  text-align: center;
   font-size: 28rpx;
   color: #111827;
   font-weight: 600;
@@ -243,7 +286,9 @@ function confirm() {
 .day-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 72rpx);
   gap: 8rpx;
+  min-height: calc(72rpx * 6 + 8rpx * 5);
 }
 
 .day-cell {
@@ -263,13 +308,13 @@ function confirm() {
 }
 
 .day-cell.today {
-  border-color: #93c5fd;
+  border-color: #facc15;
 }
 
 .day-cell.selected {
-  border-color: #2b7a78;
-  background: rgba(43, 122, 120, 0.1);
-  color: #0f766e;
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #92400e;
   font-weight: 700;
 }
 
@@ -294,8 +339,8 @@ function confirm() {
 }
 
 .btn-primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
+  color: #422006;
+  background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
 }
 
 .btn-secondary {
