@@ -7,3 +7,10 @@ export const STORAGE_KEYS = {
   PUBLIC_ASSET_CACHE: 'volunteer_public_asset_cache',
   AVATAR_FILE_CACHE: 'volunteer_avatar_file_cache'
 } as const
+
+const toPositiveInt = (value: string | undefined, fallback: number) => {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+export const DEFAULT_PAGE_SIZE = toPositiveInt(import.meta.env.VITE_PAGE_SIZE, 10)

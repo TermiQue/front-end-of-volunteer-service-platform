@@ -86,6 +86,7 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   appealStatusTextMap,
@@ -108,7 +109,7 @@ const hasMore = ref(true)
 const statusFilter = ref<AppealStatus | null>(0)
 const applicantId = ref('')
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const showReviewModal = ref(false)
 const reviewComment = ref('')

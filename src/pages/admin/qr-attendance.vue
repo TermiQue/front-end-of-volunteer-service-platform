@@ -65,6 +65,7 @@ import { onHide, onUnload } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import { fetchAdminProjects, fetchProjectQr, type QrMode, type ProjectQrInfo } from '@/utils/project'
 
@@ -123,7 +124,7 @@ const loadOngoingProjects = async () => {
     const data = await fetchAdminProjects({
       status: 1,
       page: 1,
-      pageSize: 100
+      pageSize: DEFAULT_PAGE_SIZE
     })
     projectOptions.value = data.items.map((item) => ({
       projectId: item.projectId,

@@ -197,7 +197,7 @@
       <view v-if="progressLoading" class="state-row">正在加载审核进度...</view>
       <view v-else-if="!myAppeals.length" class="state-row">暂无审核记录</view>
 
-      <scroll-view v-else class="progress-list" scroll-y>
+      <scroll-view v-else class="progress-list" scroll-y @scrolltolower="onProgressScrollToLower">
         <view v-for="item in myAppeals" :key="item.id" class="progress-item">
           <view class="progress-head">
             <text class="history-name">{{ item.projectName }}</text>
@@ -216,6 +216,11 @@
             <text>审核意见：{{ item.reviewComment || '-' }}</text>
           </view>
         </view>
+        <view class="load-more-row progress-load-more-row">
+          <text v-if="progressLoadingMore">加载中...</text>
+          <text v-else-if="!myAppealHasMore">没有更多了</text>
+          <text v-else>上拉加载更多</text>
+        </view>
       </scroll-view>
 
       <view class="modal-actions">
@@ -233,6 +238,7 @@ import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import {
   type AppealStatus,
   type AppealTargetItem,
@@ -257,7 +263,7 @@ const declareIcon = getAssetUrl('/icons/file-text.svg')
 const reviewIcon = getAssetUrl('/icons/review.svg')
 const checkinIcon = getAssetUrl('/icons/checkin.svg')
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 type HistoryViewItem = {
   id: number
@@ -295,7 +301,10 @@ const appealReason = ref('')
 const appealTargets = ref<AppealTargetItem[]>([])
 const showProgressModal = ref(false)
 const progressLoading = ref(false)
+const progressLoadingMore = ref(false)
 const progressStatusFilter = ref<MyAppealStatusFilter>('all')
+const myAppealPage = ref(1)
+const myAppealHasMore = ref(true)
 const myAppeals = ref<MyAppealItem[]>([])
 
 const toMaybeNumber = (value: string) => {
@@ -378,20 +387,40 @@ const progressStatusText = (status: AppealStatus) => {
   return appealStatusTextMap[status]
 }
 
-const loadMyAppeals = async () => {
-  progressLoading.value = true
+const loadMyAppeals = async (reset = false) => {
+  if (reset) {
+    progressLoading.value = true
+    progressLoadingMore.value = false
+    myAppealPage.value = 1
+    myAppealHasMore.value = true
+    myAppeals.value = []
+  } else {
+    if (!myAppealHasMore.value || progressLoading.value || progressLoadingMore.value) {
+      return
+    }
+    progressLoadingMore.value = true
+  }
+
   try {
     const data = await fetchMyAppeals({
       status: progressStatusFilter.value,
-      page: 1,
-      pageSize: 100
+      page: myAppealPage.value,
+      pageSize: PAGE_SIZE
     })
-    myAppeals.value = data.items
+
+    myAppeals.value = reset ? data.items : [...myAppeals.value, ...data.items]
+    myAppealHasMore.value = myAppeals.value.length < data.total && data.items.length === PAGE_SIZE
+    if (data.items.length > 0) {
+      myAppealPage.value += 1
+    }
   } catch {
-    myAppeals.value = []
+    if (reset) {
+      myAppeals.value = []
+    }
     uni.showToast({ title: '审核进度加载失败', icon: 'none' })
   } finally {
     progressLoading.value = false
+    progressLoadingMore.value = false
   }
 }
 
@@ -401,17 +430,21 @@ const setProgressStatusFilter = async (status: MyAppealStatusFilter) => {
   }
 
   progressStatusFilter.value = status
-  await loadMyAppeals()
+  await loadMyAppeals(true)
 }
 
 const openProgressModal = async () => {
   progressStatusFilter.value = 'all'
   showProgressModal.value = true
-  await loadMyAppeals()
+  await loadMyAppeals(true)
 }
 
 const closeProgressModal = () => {
   showProgressModal.value = false
+}
+
+const onProgressScrollToLower = async () => {
+  await loadMyAppeals(false)
 }
 
 const loadAppealTargets = async () => {
@@ -477,7 +510,7 @@ const submitAppeal = async () => {
   }
 
   try {
-    await loadMyAppeals()
+    await loadMyAppeals(true)
     const hasProjectPending = myAppeals.value.some((item) => item.projectId === selected.project.projectId && item.status === 0)
     if (hasProjectPending) {
       uni.showToast({ title: '该项目已有审核中的申请，暂不可重复发起', icon: 'none' })
@@ -978,6 +1011,10 @@ onPullDownRefresh(async () => {
 .progress-list {
   margin-top: 12rpx;
   max-height: 760rpx;
+}
+
+.progress-load-more-row {
+  padding-top: 12rpx;
 }
 
 .progress-item {

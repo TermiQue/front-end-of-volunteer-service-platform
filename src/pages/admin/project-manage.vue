@@ -207,6 +207,7 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   createAdminProject,
@@ -247,7 +248,7 @@ const errorMessage = ref('')
 const page = ref(1)
 const hasMore = ref(true)
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const showCreateModal = ref(false)
 const showResponsibleModal = ref(false)

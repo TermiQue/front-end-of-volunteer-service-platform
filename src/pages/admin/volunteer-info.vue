@@ -174,6 +174,7 @@ import { ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import { useAuthGuard } from '@/composables/useAuthGuard'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   fetchAdminVolunteerDetail,
@@ -199,7 +200,7 @@ const errorMessage = ref('')
 const page = ref(1)
 const hasMore = ref(true)
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const showDetailModal = ref(false)
 const detailLoading = ref(false)

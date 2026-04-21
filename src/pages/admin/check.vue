@@ -112,6 +112,7 @@ import { onHide, onUnload, onPullDownRefresh, onReachBottom } from '@dcloudio/un
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   fetchAdminProjects,
@@ -137,7 +138,7 @@ const errorMessage = ref('')
 const page = ref(1)
 const hasMore = ref(true)
 
-const PAGE_SIZE = 5
+const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const showQrModal = ref(false)
 const activeProject = ref<AdminProjectItem | null>(null)
