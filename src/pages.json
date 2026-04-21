@@ -1,0 +1,127 @@
+{
+	"pages": [ 
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "首页",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/mine/mine",
+			"style": {
+				"navigationBarTitleText": "我的",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/mine/profile-form",
+			"style": {
+				"navigationBarTitleText": "完善信息",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/juvenile/juvenile",
+			"style": {
+				"navigationBarTitleText": "临界青年",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/volunteer/volunteer",
+			"style": {
+				"navigationBarTitleText": "志愿者",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/message/message",
+			"style": {
+				"navigationBarTitleText": "消息",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/admin",
+			"style": {
+				"navigationBarTitleText": "管理员",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/clockin",
+			"style": {
+				"navigationBarTitleText": "打卡管理",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/juvenile",
+			"style": {
+				"navigationBarTitleText": "临界少年信息管理",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/volunteer-info",
+			"style": {
+				"navigationBarTitleText": "志愿者信息管理",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/project-review",
+			"style": {
+				"navigationBarTitleText": "项目审核",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/project-manage",
+			"style": {
+				"navigationBarTitleText": "项目管理",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/admin/check",
+			"style": {
+				"navigationBarTitleText": "签到签退",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "首页",
+		"navigationBarBackgroundColor": "#ffffff",
+		"backgroundColor": "#f4f1e6"
+	}
+}
