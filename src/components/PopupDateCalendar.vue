@@ -266,7 +266,9 @@ function confirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
+  font-size: 28rpx;
+  line-height: 60rpx;
+  text-align: center;
   color: #a16207;
   font-weight: 700;
 }
@@ -309,7 +311,8 @@ function confirm() {
   justify-content: center;
   border: 1rpx solid #e5e7eb;
   color: #111827;
-  font-size: 24rpx;
+  font-size: 28rpx;
+  text-align: center;
 }
 
 .day-cell.empty {
@@ -340,7 +343,12 @@ function confirm() {
   height: 66rpx;
   border: none;
   border-radius: 10rpx;
-  font-size: 24rpx;
+  font-size: 28rpx;
+  line-height: 66rpx;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
 }
 

@@ -9,19 +9,20 @@
         <view class="panel-title">{{ title }}</view>
 
         <view class="choice-label">小时</view>
-        <scroll-view class="choice-scroll" scroll-y>
-          <view class="choice-grid">
-            <view
-              v-for="(hour, index) in hourOptions"
-              :key="`h-${hour}`"
-              class="choice-item"
-              :class="selectedHourIndex === index ? 'active' : ''"
-              @tap="selectedHourIndex = index"
-            >
-              {{ hour }}
-            </view>
+        <view class="hour-grid">
+          <view
+            v-for="cell in hourCells"
+            :key="cell.key"
+            class="hour-cell"
+            :class="{
+              empty: cell.hourIndex === null,
+              active: cell.hourIndex !== null && selectedHourIndex === cell.hourIndex
+            }"
+            @tap="selectHour(cell.hourIndex)"
+          >
+            <text>{{ cell.label }}</text>
           </view>
-        </scroll-view>
+        </view>
 
         <view class="choice-label">分钟</view>
         <view class="minute-row">
@@ -46,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -69,6 +70,31 @@ const hourOptions = Array.from({ length: 24 }, (_, index) => String(index).padSt
 const minuteOptions = ['00', '30']
 const selectedHourIndex = ref(0)
 const selectedMinuteIndex = ref(0)
+
+type HourCell = {
+  key: string
+  label: string
+  hourIndex: number | null
+}
+
+const hourCells = computed<HourCell[]>(() => {
+  const cells: HourCell[] = []
+
+  for (let index = 0; index < 2; index += 1) {
+    cells.push({ key: `empty-${index}`, label: '', hourIndex: null })
+  }
+
+  for (let index = 0; index < hourOptions.length; index += 1) {
+    cells.push({ key: `hour-${index}`, label: hourOptions[index], hourIndex: index })
+  }
+
+  while (cells.length < 28) {
+    const index = cells.length
+    cells.push({ key: `tail-${index}`, label: '', hourIndex: null })
+  }
+
+  return cells
+})
 
 function parseTime(value: string) {
   const match = /^(\d{2}):(\d{2})$/.exec(value)
@@ -95,7 +121,7 @@ function floorNowToHalfHour() {
 }
 
 function openPopup() {
-  const parsed = parseTime(props.modelValue) || floorNowToHalfHour()
+  const parsed = parseTime(props.modelValue) || [9, 0]
   selectedHourIndex.value = parsed[0]
   selectedMinuteIndex.value = parsed[1]
   visible.value = true
@@ -103,6 +129,13 @@ function openPopup() {
 
 function closePopup() {
   visible.value = false
+}
+
+function selectHour(hourIndex: number | null) {
+  if (hourIndex === null) {
+    return
+  }
+  selectedHourIndex.value = hourIndex
 }
 
 function confirm() {
@@ -170,41 +203,45 @@ function confirm() {
   margin-bottom: 16rpx;
 }
 
-.choice-scroll {
-  width: 100%;
-  max-height: 280rpx;
-  margin-bottom: 12rpx;
-}
-
 .choice-label {
   font-size: 24rpx;
   color: #6b7280;
   margin-bottom: 8rpx;
 }
 
-.choice-grid {
+.hour-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(4, 72rpx);
   gap: 8rpx;
+  min-height: calc(72rpx * 4 + 8rpx * 3);
+  margin-bottom: 12rpx;
 }
 
-.choice-item {
-  height: 64rpx;
+.hour-cell,
+.minute-item {
+  height: 72rpx;
   border-radius: 10rpx;
-  border: 1rpx solid #fde68a;
-  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
-  color: #92400e;
+  font-size: 28rpx;
+  text-align: center;
+  color: #111827;
 }
 
-.choice-item.active,
+.hour-cell.empty {
+  border-color: transparent;
+  color: transparent;
+  background: transparent;
+}
+
+.hour-cell.active,
 .minute-item.active {
   background: #fef3c7;
-  border-color: #f59e0b;
-  color: #78350f;
+  border-color: #d97706;
+  color: #92400e;
   font-weight: 700;
 }
 
@@ -212,18 +249,6 @@ function confirm() {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10rpx;
-}
-
-.minute-item {
-  height: 72rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid #fde68a;
-  background: rgba(255, 255, 255, 0.86);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 26rpx;
-  color: #92400e;
 }
 
 .actions {
@@ -238,7 +263,12 @@ function confirm() {
   height: 66rpx;
   border: none;
   border-radius: 10rpx;
-  font-size: 24rpx;
+  font-size: 28rpx;
+  line-height: 66rpx;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
 }
 
