@@ -78,38 +78,22 @@
 
         <view class="filter-item">
           <text class="filter-label">开始日期</text>
-          <picker mode="date" :value="dateStart" @change="onDateStartChange">
-            <view class="filter-value">{{ dateStart || '请选择' }}</view>
-          </picker>
+          <PopupDateCalendar v-model="dateStart" title="选择开始日期" placeholder="请选择" />
         </view>
 
         <view class="filter-item">
           <text class="filter-label">结束日期</text>
-          <picker mode="date" :value="dateEnd" @change="onDateEndChange">
-            <view class="filter-value">{{ dateEnd || '请选择' }}</view>
-          </picker>
+          <PopupDateCalendar v-model="dateEnd" title="选择结束日期" placeholder="请选择" />
         </view>
 
         <view class="filter-item">
           <text class="filter-label">最小时长(h)</text>
-          <input
-            class="filter-input"
-            v-model="hourMin"
-            type="digit"
-            placeholder="例如 1.5"
-            placeholder-class="filter-placeholder"
-          />
+          <PopupDurationPicker v-model="hourMin" title="选择最小时长" placeholder="例如 1.5" :max-hours="24" />
         </view>
 
         <view class="filter-item">
           <text class="filter-label">最大时长(h)</text>
-          <input
-            class="filter-input"
-            v-model="hourMax"
-            type="digit"
-            placeholder="例如 8"
-            placeholder-class="filter-placeholder"
-          />
+          <PopupDurationPicker v-model="hourMax" title="选择最大时长" placeholder="例如 8" :max-hours="24" />
         </view>
       </view>
 
@@ -169,7 +153,7 @@
 
       <view class="modal-item">
         <text class="modal-label">期望时长(小时)</text>
-        <input class="modal-input" v-model="appealTime" type="digit" placeholder="例如 2.5" placeholder-class="filter-placeholder" />
+        <PopupDurationPicker v-model="appealTime" title="选择期望时长" placeholder="例如 2.5" :max-hours="24" />
       </view>
 
       <view class="modal-item">
@@ -236,6 +220,8 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
+import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
+import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
@@ -332,14 +318,6 @@ const dayEndTs = (value: string) => {
 
   const ts = new Date(`${value}T23:59:59`).getTime()
   return Number.isNaN(ts) ? null : ts
-}
-
-const onDateStartChange = (event: { detail: { value: string } }) => {
-  dateStart.value = event.detail.value
-}
-
-const onDateEndChange = (event: { detail: { value: string } }) => {
-  dateEnd.value = event.detail.value
 }
 
 const normalizeScanToken = (raw: string) => {

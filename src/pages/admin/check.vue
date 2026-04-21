@@ -14,35 +14,27 @@
           </view>
           <view class="filter-item">
             <text class="filter-label">时长最小值</text>
-            <input class="filter-input" v-model="queryDurationMin" type="digit" placeholder="小时" placeholder-class="placeholder" />
+            <PopupDurationPicker v-model="queryDurationMin" title="选择时长最小值" placeholder="小时" :max-hours="24" />
           </view>
           <view class="filter-item">
             <text class="filter-label">时长最大值</text>
-            <input class="filter-input" v-model="queryDurationMax" type="digit" placeholder="小时" placeholder-class="placeholder" />
+            <PopupDurationPicker v-model="queryDurationMax" title="选择时长最大值" placeholder="小时" :max-hours="24" />
           </view>
           <view class="filter-item">
             <text class="filter-label">开始时间下界</text>
-            <picker mode="date" :value="queryStartFrom" @change="onQueryStartFromChange">
-              <view class="filter-value">{{ queryStartFrom || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryStartFrom" title="选择开始时间下界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">开始时间上界</text>
-            <picker mode="date" :value="queryStartTo" @change="onQueryStartToChange">
-              <view class="filter-value">{{ queryStartTo || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryStartTo" title="选择开始时间上界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">结束时间下界</text>
-            <picker mode="date" :value="queryEndFrom" @change="onQueryEndFromChange">
-              <view class="filter-value">{{ queryEndFrom || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryEndFrom" title="选择结束时间下界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">结束时间上界</text>
-            <picker mode="date" :value="queryEndTo" @change="onQueryEndToChange">
-              <view class="filter-value">{{ queryEndTo || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryEndTo" title="选择结束时间上界" placeholder="请选择" />
           </view>
         </view>
 
@@ -110,6 +102,8 @@ import { computed, ref } from 'vue'
 import { onHide, onUnload, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
+import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
@@ -205,22 +199,6 @@ const toIsoTime = (value: string, endOfDay = false) => {
 
   const suffix = endOfDay ? 'T23:59:59+08:00' : 'T00:00:00+08:00'
   return `${value}${suffix}`
-}
-
-const onQueryStartFromChange = (event: { detail: { value: string } }) => {
-  queryStartFrom.value = event.detail.value
-}
-
-const onQueryStartToChange = (event: { detail: { value: string } }) => {
-  queryStartTo.value = event.detail.value
-}
-
-const onQueryEndFromChange = (event: { detail: { value: string } }) => {
-  queryEndFrom.value = event.detail.value
-}
-
-const onQueryEndToChange = (event: { detail: { value: string } }) => {
-  queryEndTo.value = event.detail.value
 }
 
 const buildQuery = () => ({

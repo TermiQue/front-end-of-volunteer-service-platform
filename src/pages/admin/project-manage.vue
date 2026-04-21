@@ -30,35 +30,27 @@
           </view>
           <view class="filter-item">
             <text class="filter-label">时长最小值</text>
-            <input class="filter-input" v-model="queryDurationMin" type="digit" placeholder="小时" placeholder-class="placeholder" />
+            <PopupDurationPicker v-model="queryDurationMin" title="选择时长最小值" placeholder="小时" :max-hours="24" />
           </view>
           <view class="filter-item">
             <text class="filter-label">时长最大值</text>
-            <input class="filter-input" v-model="queryDurationMax" type="digit" placeholder="小时" placeholder-class="placeholder" />
+            <PopupDurationPicker v-model="queryDurationMax" title="选择时长最大值" placeholder="小时" :max-hours="24" />
           </view>
           <view class="filter-item">
             <text class="filter-label">开始时间下界</text>
-            <picker mode="date" :value="queryStartFrom" @change="onQueryStartFromChange">
-              <view class="filter-value">{{ queryStartFrom || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryStartFrom" title="选择开始时间下界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">开始时间上界</text>
-            <picker mode="date" :value="queryStartTo" @change="onQueryStartToChange">
-              <view class="filter-value">{{ queryStartTo || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryStartTo" title="选择开始时间上界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">结束时间下界</text>
-            <picker mode="date" :value="queryEndFrom" @change="onQueryEndFromChange">
-              <view class="filter-value">{{ queryEndFrom || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryEndFrom" title="选择结束时间下界" placeholder="请选择" />
           </view>
           <view class="filter-item">
             <text class="filter-label">结束时间上界</text>
-            <picker mode="date" :value="queryEndTo" @change="onQueryEndToChange">
-              <view class="filter-value">{{ queryEndTo || '请选择' }}</view>
-            </picker>
+            <PopupDateCalendar v-model="queryEndTo" title="选择结束时间上界" placeholder="请选择" />
           </view>
         </view>
 
@@ -137,24 +129,24 @@
         <view class="modal-item">
           <text class="modal-label">开始时间</text>
           <view class="datetime-row">
-            <picker class="datetime-cell" mode="date" :value="createForm.startDate" @change="onCreateStartDateChange">
-              <view class="modal-picker">{{ createForm.startDate || '开始日期' }}</view>
-            </picker>
-            <picker class="datetime-cell" mode="time" :value="createForm.startTime" @change="onCreateStartTimeChange">
-              <view class="modal-picker">{{ createForm.startTime || '开始时间' }}</view>
-            </picker>
+            <view class="datetime-cell">
+              <PopupDateCalendar v-model="createForm.startDate" title="选择开始日期" placeholder="开始日期" />
+            </view>
+            <view class="datetime-cell">
+              <PopupTimePicker v-model="createForm.startTime" title="选择开始时间" placeholder="开始时间" />
+            </view>
           </view>
         </view>
 
         <view class="modal-item">
           <text class="modal-label">结束时间</text>
           <view class="datetime-row">
-            <picker class="datetime-cell" mode="date" :value="createForm.endDate" @change="onCreateEndDateChange">
-              <view class="modal-picker">{{ createForm.endDate || '结束日期' }}</view>
-            </picker>
-            <picker class="datetime-cell" mode="time" :value="createForm.endTime" @change="onCreateEndTimeChange">
-              <view class="modal-picker">{{ createForm.endTime || '结束时间' }}</view>
-            </picker>
+            <view class="datetime-cell">
+              <PopupDateCalendar v-model="createForm.endDate" title="选择结束日期" placeholder="结束日期" />
+            </view>
+            <view class="datetime-cell">
+              <PopupTimePicker v-model="createForm.endTime" title="选择结束时间" placeholder="结束时间" />
+            </view>
           </view>
           <text class="hint">时间最小单位为半小时（00分或30分）。</text>
         </view>
@@ -205,6 +197,9 @@ import { computed, reactive, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
+import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
+import PopupTimePicker from '@/components/PopupTimePicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
@@ -314,28 +309,6 @@ const composeIsoDateTime = (date: string, time: string) => {
   return `${date}T${time}:00+08:00`
 }
 
-const roundToHalfHour = (time: string) => {
-  if (!time) {
-    return ''
-  }
-
-  const [hourPart, minutePart] = time.split(':')
-  const hour = Number(hourPart)
-  const minute = Number(minutePart)
-
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
-    return time
-  }
-
-  if (minute === 0 || minute === 30) {
-    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-  }
-
-  const roundedMinute = minute < 30 ? 30 : 0
-  const nextHour = minute < 30 ? hour : (hour + 1) % 24
-  return `${String(nextHour).padStart(2, '0')}:${String(roundedMinute).padStart(2, '0')}`
-}
-
 const durationHours = computed(() => {
   const start = composeIsoDateTime(createForm.startDate, createForm.startTime)
   const end = composeIsoDateTime(createForm.endDate, createForm.endTime)
@@ -361,38 +334,6 @@ const durationText = computed(() => {
 
 const onStatusChange = (event: { detail: { value: string } }) => {
   statusIndex.value = Number(event.detail.value)
-}
-
-const onQueryStartFromChange = (event: { detail: { value: string } }) => {
-  queryStartFrom.value = event.detail.value
-}
-
-const onQueryStartToChange = (event: { detail: { value: string } }) => {
-  queryStartTo.value = event.detail.value
-}
-
-const onQueryEndFromChange = (event: { detail: { value: string } }) => {
-  queryEndFrom.value = event.detail.value
-}
-
-const onQueryEndToChange = (event: { detail: { value: string } }) => {
-  queryEndTo.value = event.detail.value
-}
-
-const onCreateStartDateChange = (event: { detail: { value: string } }) => {
-  createForm.startDate = event.detail.value
-}
-
-const onCreateStartTimeChange = (event: { detail: { value: string } }) => {
-  createForm.startTime = roundToHalfHour(event.detail.value)
-}
-
-const onCreateEndDateChange = (event: { detail: { value: string } }) => {
-  createForm.endDate = event.detail.value
-}
-
-const onCreateEndTimeChange = (event: { detail: { value: string } }) => {
-  createForm.endTime = roundToHalfHour(event.detail.value)
 }
 
 const onCreateResponsibleChange = (event: { detail: { value: string } }) => {

@@ -37,21 +37,9 @@
         <view class="range-group">
           <text class="range-label">时长范围</text>
           <view class="range-input-wrap">
-            <input
-              class="range-input"
-              v-model="durationMin"
-              type="digit"
-              placeholder="最小"
-              placeholder-class="search-placeholder"
-            />
+            <PopupDurationPicker v-model="durationMin" title="选择最小时长" placeholder="最小" :max-hours="24" />
             <text class="range-sep">-</text>
-            <input
-              class="range-input"
-              v-model="durationMax"
-              type="digit"
-              placeholder="最大"
-              placeholder-class="search-placeholder"
-            />
+            <PopupDurationPicker v-model="durationMax" title="选择最大时长" placeholder="最大" :max-hours="24" />
           </view>
         </view>
 
@@ -170,6 +158,7 @@
 
 <script setup lang="ts">
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
