@@ -85,6 +85,7 @@
               <view class="th th-project">项目数</view>
               <view class="th th-nickname">昵称</view>
               <view class="th th-role">角色</view>
+              <view v-if="isSuperAdmin" class="th th-role-action">角色操作</view>
               <view class="th th-detail">详细</view>
             </view>
 
@@ -96,6 +97,17 @@
               <view class="td td-project">{{ item.projectCount }}</view>
               <view class="td td-nickname">{{ item.nickname || '-' }}</view>
               <view class="td td-role">{{ toRoleLabel(item.role) }}</view>
+              <view v-if="isSuperAdmin" class="td td-role-action-cell">
+                <view
+                  v-if="item.role === 0 || item.role === 2"
+                  class="role-action-btn"
+                  :class="changingRoleUserId === item.userId ? 'disabled' : ''"
+                  @tap="toggleVolunteerRole(item)"
+                >
+                  {{ item.role === 0 ? '提升为管理员' : '降低为志愿者' }}
+                </view>
+                <view v-else class="role-action-empty">-</view>
+              </view>
               <view class="td td-detail-cell">
                 <view class="detail-btn" @tap="openDetail(item.userId)">查看</view>
               </view>
@@ -159,10 +171,11 @@
 <script setup lang="ts">
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import { useAuthGuard } from '@/composables/useAuthGuard'
+import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
@@ -171,6 +184,7 @@ import {
   formatProjectDate,
   projectStatusTextMap,
   recordValidityTextMap,
+  updateAdminVolunteerRole,
   type AdminVolunteerDetail,
   type AdminVolunteerListItem
 } from '@/utils/project'
@@ -195,6 +209,9 @@ const showDetailModal = ref(false)
 const detailLoading = ref(false)
 const detailError = ref('')
 const detailData = ref<AdminVolunteerDetail | null>(null)
+const changingRoleUserId = ref<number | null>(null)
+
+const isSuperAdmin = computed(() => currentRole.value === 3)
 
 const toNumberOrUndefined = (value: string) => {
   if (!value.trim()) {
@@ -316,6 +333,30 @@ const openDetail = async (userId: number) => {
     detailError.value = '详情加载失败'
   } finally {
     detailLoading.value = false
+  }
+}
+
+const toggleVolunteerRole = async (item: AdminVolunteerListItem) => {
+  if (changingRoleUserId.value !== null) {
+    return
+  }
+
+  if (item.role !== 0 && item.role !== 2) {
+    return
+  }
+
+  const nextRole: 0 | 2 = item.role === 0 ? 2 : 0
+  const actionLabel = nextRole === 2 ? '提升' : '降低'
+
+  changingRoleUserId.value = item.userId
+  try {
+    await updateAdminVolunteerRole(item.userId, nextRole)
+    item.role = nextRole
+    uni.showToast({ title: `${actionLabel}成功`, icon: 'success' })
+  } catch {
+    uni.showToast({ title: `${actionLabel}失败，请重试`, icon: 'none' })
+  } finally {
+    changingRoleUserId.value = null
   }
 }
 
@@ -569,7 +610,7 @@ onPullDownRefresh(async () => {
 }
 
 .table {
-  min-width: 1920rpx;
+  min-width: 2160rpx;
 }
 
 .table-header,
@@ -624,6 +665,8 @@ onPullDownRefresh(async () => {
 .td-nickname,
 .th-role,
 .td-role,
+.th-role-action,
+.td-role-action-cell,
 .th-detail,
 .td-detail-cell {
   width: 210rpx;
@@ -640,6 +683,39 @@ onPullDownRefresh(async () => {
 
 .td-detail-cell {
   padding: 0;
+}
+
+.td-role-action-cell {
+  padding: 0;
+}
+
+.role-action-btn {
+  width: 100%;
+  height: 100%;
+  min-height: 110rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #14532d;
+  background: linear-gradient(135deg, #86efac 0%, #4ade80 100%);
+}
+
+.role-action-btn.disabled {
+  opacity: 0.6;
+}
+
+.role-action-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 110rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 24rpx;
 }
 
 .detail-btn {

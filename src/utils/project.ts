@@ -892,6 +892,16 @@ export const fetchAdminVolunteerDetail = async (userId: number): Promise<AdminVo
   }
 }
 
+export const updateAdminVolunteerRole = async (userId: number, role: 0 | 2) => {
+  return requestJson({
+    url: `/admin/volunteers/${userId}/role`,
+    method: 'POST',
+    data: {
+      role
+    }
+  })
+}
+
 export const fetchAdminUsers = async () => {
   const data = await requestJson<AdminUsersResponse>({
     url: '/admin/admins',
