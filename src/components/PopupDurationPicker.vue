@@ -8,14 +8,33 @@
       <view class="panel" @tap.stop>
         <view class="panel-title">{{ title }}</view>
 
-        <picker-view class="picker-view" :value="pickerValue" @change="onPickerChange" indicator-style="height: 88rpx;">
-          <picker-view-column>
-            <view v-for="hour in hourOptions" :key="`h-${hour}`" class="picker-item">{{ hour }}</view>
-          </picker-view-column>
-          <picker-view-column>
-            <view v-for="minute in minuteOptions" :key="`m-${minute}`" class="picker-item">{{ minute }}</view>
-          </picker-view-column>
-        </picker-view>
+        <view class="choice-label">小时</view>
+        <scroll-view class="choice-scroll" scroll-y>
+          <view class="choice-grid">
+            <view
+              v-for="(hour, index) in hourOptions"
+              :key="`h-${hour}`"
+              class="choice-item"
+              :class="selectedHourIndex === index ? 'active' : ''"
+              @tap="selectedHourIndex = index"
+            >
+              {{ hour }}
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="choice-label">增量</view>
+        <view class="minute-row">
+          <view
+            v-for="(minute, index) in minuteOptions"
+            :key="`m-${minute}`"
+            class="minute-item"
+            :class="selectedMinuteIndex === index ? 'active' : ''"
+            @tap="selectedMinuteIndex = index"
+          >
+            {{ minute }}
+          </view>
+        </view>
 
         <view class="actions">
           <button class="btn btn-secondary" @tap="closePopup">取消</button>
@@ -52,8 +71,9 @@ const hourOptions = computed(() => {
   const max = Math.max(0, Math.min(24, Math.floor(props.maxHours)))
   return Array.from({ length: max + 1 }, (_, index) => String(index).padStart(2, '0'))
 })
-const minuteOptions = ['0.0h', '0.5h']
-const pickerValue = ref<[number, number]>([0, 0])
+const minuteOptions = ['+0.0h', '+0.5h']
+const selectedHourIndex = ref(0)
+const selectedMinuteIndex = ref(0)
 
 const displayText = computed(() => {
   if (!props.modelValue) {
@@ -75,7 +95,9 @@ function parseDuration(value: string) {
 }
 
 function openPopup() {
-  pickerValue.value = parseDuration(props.modelValue) || [0, 0]
+  const parsed = parseDuration(props.modelValue) || [0, 0]
+  selectedHourIndex.value = parsed[0]
+  selectedMinuteIndex.value = parsed[1]
   visible.value = true
 }
 
@@ -83,15 +105,9 @@ function closePopup() {
   visible.value = false
 }
 
-function onPickerChange(event: { detail: { value: number[] } }) {
-  const hourIndex = Number(event.detail.value?.[0] ?? 0)
-  const minuteIndex = Number(event.detail.value?.[1] ?? 0)
-  pickerValue.value = [hourIndex, minuteIndex]
-}
-
 function confirm() {
-  const hour = Number(hourOptions.value[pickerValue.value[0]] || 0)
-  const minute = pickerValue.value[1] === 1 ? 0.5 : 0
+  const hour = Number(hourOptions.value[selectedHourIndex.value] || 0)
+  const minute = selectedMinuteIndex.value === 1 ? 0.5 : 0
   const total = hour + minute
   emit('update:modelValue', total.toFixed(1))
   closePopup()
@@ -125,16 +141,24 @@ function confirm() {
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 3000;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24rpx;
+  box-sizing: border-box;
 }
 
 .panel {
   width: 100%;
-  border-radius: 24rpx 24rpx 0 0;
-  background: #ffffff;
+  max-width: 680rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.22);
   padding: 24rpx;
   box-sizing: border-box;
 }
@@ -147,17 +171,60 @@ function confirm() {
   margin-bottom: 16rpx;
 }
 
-.picker-view {
+.choice-scroll {
   width: 100%;
-  height: 340rpx;
+  max-height: 280rpx;
+  margin-bottom: 12rpx;
 }
 
-.picker-item {
-  height: 88rpx;
-  line-height: 88rpx;
-  text-align: center;
-  font-size: 28rpx;
-  color: #111827;
+.choice-label {
+  font-size: 24rpx;
+  color: #6b7280;
+  margin-bottom: 8rpx;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8rpx;
+}
+
+.choice-item {
+  height: 64rpx;
+  border-radius: 10rpx;
+  border: 1rpx solid #fde68a;
+  background: rgba(255, 255, 255, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #92400e;
+}
+
+.choice-item.active,
+.minute-item.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+  font-weight: 700;
+}
+
+.minute-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10rpx;
+}
+
+.minute-item {
+  height: 72rpx;
+  border-radius: 12rpx;
+  border: 1rpx solid #fde68a;
+  background: rgba(255, 255, 255, 0.86);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #92400e;
 }
 
 .actions {

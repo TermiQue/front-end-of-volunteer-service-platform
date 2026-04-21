@@ -10,13 +10,13 @@
 
         <view class="calendar-head">
           <view class="nav-group nav-left">
-            <view class="month-btn" @tap="changeYear(-1)"><<</view>
-            <view class="month-btn" @tap="changeMonth(-1)"><</view>
+            <view class="month-btn" @tap="changeYear(-1)">«</view>
+            <view class="month-btn" @tap="changeMonth(-1)">‹</view>
           </view>
           <view class="month-label">{{ viewYear }}年{{ String(viewMonth + 1).padStart(2, '0') }}月</view>
           <view class="nav-group nav-right">
-            <view class="month-btn" @tap="changeMonth(1)">></view>
-            <view class="month-btn" @tap="changeYear(1)">>></view>
+            <view class="month-btn" @tap="changeMonth(1)">›</view>
+            <view class="month-btn" @tap="changeYear(1)">»</view>
           </view>
         </view>
 
@@ -205,16 +205,24 @@ function confirm() {
 .mask {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 3000;
   background: rgba(15, 23, 42, 0.5);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24rpx;
+  box-sizing: border-box;
 }
 
 .panel {
   width: 100%;
-  border-radius: 24rpx 24rpx 0 0;
-  background: #ffffff;
+  max-width: 680rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.22);
   padding: 24rpx;
   box-sizing: border-box;
 }
@@ -289,6 +297,8 @@ function confirm() {
   grid-template-rows: repeat(6, 72rpx);
   gap: 8rpx;
   min-height: calc(72rpx * 6 + 8rpx * 5);
+  max-height: 520rpx;
+  overflow: hidden;
 }
 
 .day-cell {
