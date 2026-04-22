@@ -29,6 +29,10 @@
           <button v-else class="primary-btn" @tap="handleEditProfile">修改信息</button>
         </view>
 
+        <view v-if="!isLoggedIn && isDebugMode" class="debug-row">
+          <button class="debug-btn" @tap="handleDebugLogin">一键登录(调试)</button>
+        </view>
+
         <view v-if="isLoggedIn" class="secondary-row">
           <button class="secondary-btn" @tap="handleLogout">退出登录</button>
         </view>
@@ -56,6 +60,7 @@ import {
   goToProfileForm,
   hasProfile,
   isLoggedIn,
+  loginWithDebugCode,
   loginWithWechat,
   logout
 } from '@/utils/auth'
@@ -65,6 +70,8 @@ const displayName = computed(() => currentNickname.value || currentProfile.value
 const profileName = computed(() => currentProfile.value?.name || '未完善')
 const studentId = computed(() => currentProfile.value?.student_id || '未完善')
 const phone = computed(() => currentProfile.value?.phone || '未完善')
+const rawDebugFlag = (import.meta.env as Record<string, unknown>).IS_DEBUG ?? import.meta.env.VITE_IS_DEBUG
+const isDebugMode = String(rawDebugFlag || '').toLowerCase() === 'true'
 
 const roleLabel = computed(() => {
   if (currentRole.value === 3) {
@@ -99,6 +106,21 @@ const handleLogin = async () => {
 
 const handleEditProfile = () => {
   goToProfileForm('/pages/mine/mine')
+}
+
+const handleDebugLogin = async () => {
+  try {
+    await loginWithDebugCode('test-code-001')
+
+    if (!hasProfile.value) {
+      goToProfileForm('/pages/mine/mine')
+      return
+    }
+
+    uni.showToast({ title: '调试登录成功', icon: 'none' })
+  } catch {
+    uni.showToast({ title: '调试登录失败', icon: 'none' })
+  }
 }
 
 const handleLogout = async () => {
@@ -241,6 +263,10 @@ onShow(async () => {
   margin-top: 28rpx;
 }
 
+.debug-row {
+  margin-top: 16rpx;
+}
+
 .primary-btn,
 .secondary-btn {
   height: 92rpx;
@@ -261,8 +287,20 @@ onShow(async () => {
   color: #1f2937;
 }
 
+.debug-btn {
+  height: 86rpx;
+  line-height: 86rpx;
+  border: 1rpx solid #2d7b7c;
+  border-radius: 18rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #2d7b7c;
+  background: rgba(45, 123, 124, 0.08);
+}
+
 .primary-btn::after,
-.secondary-btn::after {
+.secondary-btn::after,
+.debug-btn::after {
   border: none;
 }
 </style>

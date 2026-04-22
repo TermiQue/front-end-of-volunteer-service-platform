@@ -402,9 +402,9 @@ export const fetchCurrentUser = async () => {
 export const loginWithWechat = async () => {
   let loginCode = ''
 
-  // #ifndef MP-WEIXIN
-  loginCode = 'test-code-001'
-  // #endif
+  // // #ifndef MP-WEIXIN
+  // loginCode = 'test-code-001'
+  // // #endif
 
   // #ifdef MP-WEIXIN
   const loginResult = await new Promise<UniApp.LoginRes>((resolve, reject) => {
@@ -427,6 +427,30 @@ export const loginWithWechat = async () => {
     auth: false,
     data: {
       code: loginCode, 
+      deviceId: getDeviceId(),
+      deviceType: getDeviceType()
+    }
+  })
+
+  setSession({
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    user: data.user
+  })
+
+  const meUser = await fetchCurrentUser()
+  return meUser
+}
+
+export const loginWithDebugCode = async (debugCode = 'test-code') => {
+  const code = debugCode.trim() || 'test-code-001'
+
+  const data = await requestJson<LoginResponse>({
+    url: '/login/wechat',
+    method: 'POST',
+    auth: false,
+    data: {
+      code,
       deviceId: getDeviceId(),
       deviceType: getDeviceType()
     }

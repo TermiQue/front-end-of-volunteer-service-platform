@@ -13,11 +13,12 @@ const PUBLIC_FILE_API_PATH = '/content/public-file'
 const PUBLIC_ASSET_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const PUBLIC_ASSET_DOWNLOAD_TIMEOUT_MS = 15 * 1000
 
+let ENABLE_LOCAL_FILE_CACHE: boolean
 // #ifdef H5
-const ENABLE_LOCAL_FILE_CACHE = false
+ENABLE_LOCAL_FILE_CACHE = false
 // #endif
 // #ifndef H5
-const ENABLE_LOCAL_FILE_CACHE = true
+ENABLE_LOCAL_FILE_CACHE = true
 // #endif
 
 type PublicAssetCacheRecord = {
