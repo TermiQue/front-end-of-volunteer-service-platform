@@ -46,6 +46,24 @@
 			}
 		},
 		{
+			"path": "pages/volunteer/appeal",
+			"style": {
+				"navigationBarTitleText": "事务申请",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
+			"path": "pages/volunteer/progress",
+			"style": {
+				"navigationBarTitleText": "审核进度",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
 			"path": "pages/message/message",
 			"style": {
 				"navigationBarTitleText": "消息",

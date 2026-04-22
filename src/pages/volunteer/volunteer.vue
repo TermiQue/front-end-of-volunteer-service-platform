@@ -25,12 +25,12 @@
       </view>
 
       <view class="action-row">
-        <view class="action-card" @tap="openAppealModal">
+        <view class="action-card" @tap="goToAppealPage">
           <image class="action-icon" :src="declareIcon" mode="aspectFit" />
           <text class="action-text">事务申请</text>
         </view>
 
-        <view class="action-card" @tap="openProgressModal">
+        <view class="action-card" @tap="goToProgressPage">
           <image class="action-icon" :src="reviewIcon" mode="aspectFit" />
           <text class="action-text">审核进度</text>
         </view>
@@ -130,88 +130,6 @@
   </view>
 
   <BottomTabbar :selected="1" />
-
-  <view v-if="showAppealModal" class="modal-mask" @tap="closeAppealModal">
-    <view class="modal" @tap.stop>
-      <view class="modal-title">提交事务申请</view>
-
-      <view class="modal-item">
-        <text class="modal-label">申请类型</text>
-        <view class="segmented">
-          <view class="segmented-item" :class="appealTypeFilter === 0 ? 'active' : ''" @tap="setAppealTypeFilter(0)">全部</view>
-          <view class="segmented-item" :class="appealTypeFilter === 1 ? 'active' : ''" @tap="setAppealTypeFilter(1)">无效记录申诉</view>
-          <view class="segmented-item" :class="appealTypeFilter === 2 ? 'active' : ''" @tap="setAppealTypeFilter(2)">时长变更</view>
-        </view>
-      </view>
-
-      <view class="modal-item">
-        <text class="modal-label">可申请对象</text>
-        <picker mode="selector" :range="appealTargetOptions" range-key="label" :value="appealTargetIndex" @change="onAppealTargetChange">
-          <view class="modal-picker">{{ selectedAppealRecordLabel }}</view>
-        </picker>
-      </view>
-
-      <view class="modal-item">
-        <text class="modal-label">期望时长(小时)</text>
-        <PopupDurationPicker v-model="appealTime" title="选择期望时长" placeholder="例如 2.5" :max-hours="24" />
-      </view>
-
-      <view class="modal-item">
-        <text class="modal-label">申请理由</text>
-        <textarea class="modal-textarea" v-model="appealReason" placeholder="请填写申请理由" placeholder-class="filter-placeholder" />
-      </view>
-      <view class="modal-actions">
-        <button class="modal-btn modal-btn-secondary" @tap="closeAppealModal">取消</button>
-        <button class="modal-btn modal-btn-primary" @tap="submitAppeal">提交</button>
-      </view>
-    </view>
-  </view>
-
-  <view v-if="showProgressModal" class="modal-mask" @tap="closeProgressModal">
-    <view class="modal progress-modal" @tap.stop>
-      <view class="modal-title">我的审核进度</view>
-
-      <view class="segmented">
-        <view class="segmented-item" :class="progressStatusFilter === 'all' ? 'active' : ''" @tap="setProgressStatusFilter('all')">全部</view>
-        <view class="segmented-item" :class="progressStatusFilter === 0 ? 'active' : ''" @tap="setProgressStatusFilter(0)">审核中</view>
-        <view class="segmented-item" :class="progressStatusFilter === 1 ? 'active' : ''" @tap="setProgressStatusFilter(1)">通过</view>
-        <view class="segmented-item" :class="progressStatusFilter === 2 ? 'active' : ''" @tap="setProgressStatusFilter(2)">拒绝</view>
-      </view>
-
-      <view v-if="progressLoading" class="state-row">正在加载审核进度...</view>
-      <view v-else-if="!myAppeals.length" class="state-row">暂无审核记录</view>
-
-      <scroll-view v-else class="progress-list" scroll-y @scrolltolower="onProgressScrollToLower">
-        <view v-for="item in myAppeals" :key="item.id" class="progress-item">
-          <view class="progress-head">
-            <text class="history-name">{{ item.projectName }}</text>
-            <text class="progress-status" :class="`s-${item.status}`">{{ progressStatusText(item.status) }}</text>
-          </view>
-          <view class="history-meta">
-            <text>申请时长：{{ item.time.toFixed(1) }}h</text>
-          </view>
-          <view class="history-meta">
-            <text>申请时间：{{ formatProjectDate(item.applyTime) }}</text>
-          </view>
-          <view class="history-meta">
-            <text>申请理由：{{ item.reason || '-' }}</text>
-          </view>
-          <view class="history-meta">
-            <text>审核意见：{{ item.reviewComment || '-' }}</text>
-          </view>
-        </view>
-        <view class="load-more-row progress-load-more-row">
-          <text v-if="progressLoadingMore">加载中...</text>
-          <text v-else-if="!myAppealHasMore">没有更多了</text>
-          <text v-else>上拉加载更多</text>
-        </view>
-      </scroll-view>
-
-      <view class="modal-actions">
-        <button class="modal-btn modal-btn-secondary" @tap="closeProgressModal">关闭</button>
-      </view>
-    </view>
-  </view>
 </template>
 
 <script setup lang="ts">
@@ -226,15 +144,6 @@ import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import {
-  type AppealStatus,
-  type AppealTargetItem,
-  type AppealTargetType,
-  type MyAppealItem,
-  type MyAppealStatusFilter,
-  appealStatusTextMap,
-  createAppeal,
-  fetchAppealTargets,
-  fetchMyAppeals,
   recordValidityTextMap,
   fetchVolunteerProjects,
   formatProjectDate,
@@ -279,20 +188,6 @@ const dateEnd = ref('')
 const hourMin = ref('')
 const hourMax = ref('')
 
-const showAppealModal = ref(false)
-const appealTypeFilter = ref<0 | AppealTargetType>(0)
-const appealTargetIndex = ref(0)
-const appealTime = ref('')
-const appealReason = ref('')
-const appealTargets = ref<AppealTargetItem[]>([])
-const showProgressModal = ref(false)
-const progressLoading = ref(false)
-const progressLoadingMore = ref(false)
-const progressStatusFilter = ref<MyAppealStatusFilter>('all')
-const myAppealPage = ref(1)
-const myAppealHasMore = ref(true)
-const myAppeals = ref<MyAppealItem[]>([])
-
 const toMaybeNumber = (value: string) => {
   if (!value.trim()) {
     return null
@@ -335,177 +230,12 @@ const normalizeScanToken = (raw: string) => {
   return value
 }
 
-const handleUnavailable = (label: string) => {
-  uni.showToast({
-    title: `${label}暂未开放`,
-    icon: 'none'
-  })
+const goToAppealPage = () => {
+  uni.navigateTo({ url: '/pages/volunteer/appeal' })
 }
 
-const appealTargetOptions = computed(() =>
-  appealTargets.value.map((item) => ({
-    participantId: item.participantId,
-    label: `${item.project.name} (${item.type === 1 ? '无效记录申诉' : '时长变更'})${item.hasPendingAppeal ? ' [已有待审]' : ''}`
-  }))
-)
-
-const selectedAppealRecordLabel = computed(() => {
-  if (!appealTargetOptions.value.length) {
-    return '暂无可申请记录'
-  }
-
-  return appealTargetOptions.value[appealTargetIndex.value]?.label || appealTargetOptions.value[0].label
-})
-
-const progressStatusText = (status: AppealStatus) => {
-  if (status === 0) {
-    return '审核中'
-  }
-
-  return appealStatusTextMap[status]
-}
-
-const loadMyAppeals = async (reset = false) => {
-  if (reset) {
-    progressLoading.value = true
-    progressLoadingMore.value = false
-    myAppealPage.value = 1
-    myAppealHasMore.value = true
-    myAppeals.value = []
-  } else {
-    if (!myAppealHasMore.value || progressLoading.value || progressLoadingMore.value) {
-      return
-    }
-    progressLoadingMore.value = true
-  }
-
-  try {
-    const data = await fetchMyAppeals({
-      status: progressStatusFilter.value,
-      page: myAppealPage.value,
-      pageSize: PAGE_SIZE
-    })
-
-    myAppeals.value = reset ? data.items : [...myAppeals.value, ...data.items]
-    myAppealHasMore.value = myAppeals.value.length < data.total && data.items.length === PAGE_SIZE
-    if (data.items.length > 0) {
-      myAppealPage.value += 1
-    }
-  } catch {
-    if (reset) {
-      myAppeals.value = []
-    }
-    uni.showToast({ title: '审核进度加载失败', icon: 'none' })
-  } finally {
-    progressLoading.value = false
-    progressLoadingMore.value = false
-  }
-}
-
-const setProgressStatusFilter = async (status: MyAppealStatusFilter) => {
-  if (progressStatusFilter.value === status) {
-    return
-  }
-
-  progressStatusFilter.value = status
-  await loadMyAppeals(true)
-}
-
-const openProgressModal = async () => {
-  progressStatusFilter.value = 'all'
-  showProgressModal.value = true
-  await loadMyAppeals(true)
-}
-
-const closeProgressModal = () => {
-  showProgressModal.value = false
-}
-
-const onProgressScrollToLower = async () => {
-  await loadMyAppeals(false)
-}
-
-const loadAppealTargets = async () => {
-  try {
-    const data = await fetchAppealTargets(appealTypeFilter.value === 0 ? {} : { type: appealTypeFilter.value })
-    appealTargets.value = data.items.filter((item) => !item.hasPendingAppeal)
-    appealTargetIndex.value = 0
-  } catch {
-    appealTargets.value = []
-    uni.showToast({ title: '可申请对象加载失败', icon: 'none' })
-  }
-}
-
-const setAppealTypeFilter = async (type: 0 | AppealTargetType) => {
-  if (appealTypeFilter.value === type) {
-    return
-  }
-
-  appealTypeFilter.value = type
-  await loadAppealTargets()
-}
-
-const openAppealModal = async () => {
-  appealTypeFilter.value = 0
-  await loadAppealTargets()
-
-  if (!appealTargetOptions.value.length) {
-    uni.showToast({ title: '暂无可发起申请的对象', icon: 'none' })
-    return
-  }
-
-  appealTargetIndex.value = 0
-  appealTime.value = ''
-  appealReason.value = ''
-  showAppealModal.value = true
-}
-
-const closeAppealModal = () => {
-  showAppealModal.value = false
-}
-
-const onAppealTargetChange = (event: { detail: { value: string } }) => {
-  appealTargetIndex.value = Number(event.detail.value)
-}
-
-const submitAppeal = async () => {
-  const selected = appealTargets.value[appealTargetIndex.value]
-  if (!selected) {
-    uni.showToast({ title: '请选择可申请对象', icon: 'none' })
-    return
-  }
-
-  const time = Number(appealTime.value)
-  if (!Number.isFinite(time) || time <= 0 || (time * 10) % 5 !== 0) {
-    uni.showToast({ title: '请填写 0.5 精度的有效时长', icon: 'none' })
-    return
-  }
-
-  const reason = appealReason.value.trim()
-  if (!reason) {
-    uni.showToast({ title: '请填写申请理由', icon: 'none' })
-    return
-  }
-
-  try {
-    await loadMyAppeals(true)
-    const hasProjectPending = myAppeals.value.some((item) => item.projectId === selected.project.projectId && item.status === 0)
-    if (hasProjectPending) {
-      uni.showToast({ title: '该项目已有审核中的申请，暂不可重复发起', icon: 'none' })
-      return
-    }
-
-    await createAppeal({
-      participantId: selected.participantId,
-      time,
-      reason
-    })
-    uni.showToast({ title: '申请已提交', icon: 'none' })
-    closeAppealModal()
-    await loadMyAppeals()
-  } catch {
-    uni.showToast({ title: '申请提交失败', icon: 'none' })
-  }
+const goToProgressPage = () => {
+  uni.navigateTo({ url: '/pages/volunteer/progress' })
 }
 
 const scanQrCode = async () => {
@@ -959,161 +689,5 @@ onPullDownRefresh(async () => {
   text-align: center;
   color: #9ca3af;
   font-size: 22rpx;
-}
-
-.modal-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24rpx;
-  box-sizing: border-box;
-}
-
-.modal {
-  width: 100%;
-  max-width: 680rpx;
-  background: #ffffff;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-sizing: border-box;
-}
-
-.progress-modal {
-  max-height: 78vh;
-}
-
-.progress-list {
-  margin-top: 12rpx;
-  max-height: 760rpx;
-}
-
-.progress-load-more-row {
-  padding-top: 12rpx;
-}
-
-.progress-item {
-  padding: 14rpx 0;
-  border-bottom: 1rpx dashed #e6e8ec;
-}
-
-.progress-item:last-child {
-  border-bottom: none;
-}
-
-.progress-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.progress-status {
-  font-size: 20rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 999rpx;
-}
-
-.progress-status.s-0 {
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.progress-status.s-1 {
-  color: #0f766e;
-  background: #ccfbf1;
-}
-
-.progress-status.s-2 {
-  color: #b42318;
-  background: #fee4e2;
-}
-
-.modal-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 16rpx;
-}
-
-.modal-item {
-  margin-bottom: 14rpx;
-}
-
-.modal-label {
-  display: block;
-  font-size: 22rpx;
-  color: #4b5563;
-  margin-bottom: 8rpx;
-}
-
-.segmented {
-  display: flex;
-  gap: 10rpx;
-  flex-wrap: wrap;
-}
-
-.segmented-item {
-  flex: 1;
-  min-width: 140rpx;
-  min-height: 64rpx;
-  border-radius: 10rpx;
-  border: 1rpx solid #d1d5db;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #4b5563;
-  font-size: 22rpx;
-}
-
-.segmented-item.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #2b7a78 0%, #256f6d 100%);
-}
-
-.modal-picker,
-.modal-input,
-.modal-textarea {
-  width: 100%;
-  border: 1rpx solid #d1d5db;
-  border-radius: 12rpx;
-  box-sizing: border-box;
-  padding: 16rpx;
-  background: #f9fafb;
-  color: #111827;
-  font-size: 22rpx;
-  min-height: 64rpx;
-}
-
-.modal-textarea {
-  min-height: 176rpx;
-}
-
-.modal-actions {
-  margin-top: 10rpx;
-  display: flex;
-  gap: 16rpx;
-}
-
-.modal-btn {
-  flex: 1;
-  border: none;
-  border-radius: 12rpx;
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.modal-btn-primary {
-  background: linear-gradient(135deg, #2b7a78 0%, #256f6d 100%);
-}
-
-.modal-btn-secondary {
-  background: #6b7280;
 }
 </style>
