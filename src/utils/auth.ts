@@ -379,8 +379,8 @@ export const goToProfileForm = (redirectPath = '') => {
 
 export const showTeamIntro = () => {
   uni.showModal({
-    title: 'Team introduction',
-    content: 'The team focuses on youth growth, volunteer service, and community practice.',
+    title: '团队介绍',
+    content: '本团队来自中国矿业大学公共管理学院，致力于通过技术手段服务志愿者和社会公益组织，提升志愿服务的效率和影响力。\n\n管理员联系方式(QQ)：\n李天琦：2777434282\n\n本小程序由计科24-4班李天琦开发\n联系方式：18500605698@163.com',
     showCancel: false,
     confirmText: 'OK'
   })
