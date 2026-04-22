@@ -528,6 +528,10 @@ Query 参数:
 }
 ```
 
+规则:
+
+- 已结束项目（`status=2`）不允许变更负责人。
+
 ---
 
 ## 7.4 开启项目
@@ -633,7 +637,68 @@ Query 参数:
 
 ---
 
-## 7.11 查询申请列表
+## 7.11 提升志愿者为管理员（超级管理员）
+
+- Method: `POST`
+- Path: `/api/admin/admins/:userId/promote`
+- 权限: 仅超级管理员
+
+规则:
+
+- 仅可提升非管理员、非超级管理员用户。
+- 目标用户必须存在且状态正常。
+
+返回:
+
+- `user`: 更新后的用户信息（`user_id`、`nickname`、`avatar_url`、`role`、`status`）
+
+---
+
+## 7.12 降低管理员为志愿者（超级管理员）
+
+- Method: `POST`
+- Path: `/api/admin/admins/:userId/demote`
+- 权限: 仅超级管理员
+
+规则:
+
+- 仅可降低普通管理员（`role=2`），不可降低超级管理员。
+- 不可降低当前登录的超级管理员自身。
+- 目标用户必须存在且状态正常。
+
+返回:
+
+- `user`: 更新后的用户信息（`user_id`、`nickname`、`avatar_url`、`role`、`status`）
+
+---
+
+## 7.13 导出项目参与信息 Excel
+
+- Method: `GET`
+- Path: `/api/admin/projects/:projectId/participants/export`
+- 权限: 管理员/超级管理员
+
+权限差异:
+
+- 超级管理员: 可导出任意项目。
+- 管理员: 仅可导出自己负责的项目。
+
+响应:
+
+- 返回 `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` 文件流。
+- 文件名规则: `项目名_项目id_时间戳.xlsx`。
+
+Excel 说明:
+
+- 表头固定为: `姓名`、`*学号`、`*时长/h`
+- 数据来源:
+  - `姓名`: 基本信息表 `volunteers.name`
+  - `*学号`: 基本信息表 `volunteers.student_id`（单元格格式为文本）
+  - `*时长/h`: 参与记录结算时长 `volunteer_project_participants.settlement_hours`（展示为整数或 `x.5`）
+
+---
+
+## 7.14 查询申请列表
 
 - Method: `GET`
 - Path: `/api/admin/appeals`
@@ -656,7 +721,7 @@ Query 参数:
 
 ---
 
-## 7.12 审核通过申请
+## 7.15 审核通过申请
 
 - Method: `POST`
 - Path: `/api/admin/appeals/:appealId/approve`
@@ -684,7 +749,7 @@ Query 参数:
 
 ---
 
-## 7.13 审核拒绝申请
+## 7.16 审核拒绝申请
 
 - Method: `POST`
 - Path: `/api/admin/appeals/:appealId/reject`

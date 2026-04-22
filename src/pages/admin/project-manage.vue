@@ -76,30 +76,47 @@
             <view class="meta">描述：{{ item.description || '无' }}</view>
 
             <view class="actions">
-              <button
-                v-if="item.status === 0"
-                class="item-btn item-btn-start"
-                @tap="updateStatus(item.projectId, 'start')"
-              >
-                开启项目
-              </button>
-              <button
-                v-else-if="item.status === 1"
-                class="item-btn item-btn-end"
-                @tap="updateStatus(item.projectId, 'end')"
-              >
-                结束项目
-              </button>
-              <view v-else class="done-text">已结束项目不可变更</view>
+              <view class="action-slot">
+                <button
+                  v-if="canOperateProject(item) && item.status === 0"
+                  class="item-btn item-btn-start"
+                  @tap="updateStatus(item.projectId, 'start')"
+                >
+                  开启项目
+                </button>
+                <button
+                  v-else-if="canOperateProject(item) && item.status === 1"
+                  class="item-btn item-btn-end"
+                  @tap="updateStatus(item.projectId, 'end')"
+                >
+                  结束项目
+                </button>
+                <view v-else-if="canOperateProject(item)" class="done-text">已结束项目不可变更</view>
+                <view v-else class="action-placeholder" aria-hidden="true"></view>
+              </view>
 
-              <button
-                v-if="isSuperAdmin"
-                class="item-btn item-btn-responsible"
-                :disabled="item.status === 2"
-                @tap="openResponsibleModal(item)"
-              >
-                修改负责人
-              </button>
+              <view class="action-slot">
+                <button
+                  v-if="isSuperAdmin && item.status !== 2"
+                  class="item-btn item-btn-responsible"
+                  @tap="openResponsibleModal(item)"
+                >
+                  修改负责人
+                </button>
+                <view v-else class="action-placeholder" aria-hidden="true"></view>
+              </view>
+
+              <view class="action-slot">
+                <button
+                  v-if="canExportProject(item)"
+                  class="item-btn item-btn-export"
+                  :disabled="exportingProjectId === item.projectId"
+                  @tap="exportParticipants(item)"
+                >
+                  {{ exportingProjectId === item.projectId ? '导出中...' : '导出参与信息' }}
+                </button>
+                <view v-else class="action-placeholder" aria-hidden="true"></view>
+              </view>
             </view>
           </view>
         </block>
@@ -202,11 +219,12 @@ import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import PopupTimePicker from '@/components/PopupTimePicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
-import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
+import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   createAdminProject,
   endAdminProject,
+  exportAdminProjectParticipants,
   fetchAdminUsers,
   fetchAdminProjects,
   formatProjectDate,
@@ -251,6 +269,7 @@ const selectedProject = ref<AdminProjectItem | null>(null)
 const responsibleSelectIndex = ref(0)
 const adminUsers = ref<AdminUserItem[]>([])
 const createResponsibleIndex = ref(0)
+const exportingProjectId = ref<number | null>(null)
 
 const adminUserOptions = computed(() =>
   adminUsers.value.map((item) => ({
@@ -275,6 +294,19 @@ const selectedResponsibleLabel = computed(() => {
 
 const selectedProjectName = computed(() => selectedProject.value?.name || '-')
 const isSuperAdmin = computed(() => currentRole.value === 3)
+const currentUserId = computed(() => {
+  const raw = uni.getStorageSync(STORAGE_KEYS.USER_CACHE)
+  if (!raw) {
+    return 0
+  }
+
+  try {
+    const parsed = JSON.parse(raw as string) as { userId?: number; user_id?: number }
+    return parsed.userId ?? parsed.user_id ?? 0
+  } catch {
+    return 0
+  }
+})
 
 const createForm = reactive({
   name: '',
@@ -292,6 +324,14 @@ const toMaybeNumber = (value: string) => {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const canOperateProject = (item: AdminProjectItem) => {
+  return isSuperAdmin.value || item.responsibleId === currentUserId.value
+}
+
+const canExportProject = (item: AdminProjectItem) => {
+  return canOperateProject(item) && item.status === 2
 }
 
 const toIsoTime = (value: string, endOfDay = false) => {
@@ -564,6 +604,42 @@ const submitResponsibleUpdate = async () => {
   }
 }
 
+const exportParticipants = async (item: AdminProjectItem) => {
+  if (item.status !== 2) {
+    uni.showToast({ title: '仅已结束项目可导出', icon: 'none' })
+    return
+  }
+
+  if (exportingProjectId.value !== null) {
+    return
+  }
+
+  exportingProjectId.value = item.projectId
+  uni.showLoading({ title: '正在导出' })
+
+  try {
+    const filePath = await exportAdminProjectParticipants(item.projectId)
+    uni.hideLoading()
+    uni.showToast({ title: '导出成功', icon: 'none' })
+
+    if (filePath) {
+      uni.openDocument({
+        filePath,
+        fileType: 'xlsx',
+        showMenu: true,
+        fail: () => {
+          uni.showToast({ title: '文件已保存', icon: 'none' })
+        }
+      })
+    }
+  } catch {
+    uni.hideLoading()
+    uni.showToast({ title: '导出失败，请重试', icon: 'none' })
+  } finally {
+    exportingProjectId.value = null
+  }
+}
+
 useAuthGuard({
   routePath: '/pages/admin/project-manage',
   roleCheck: (role) => role === 2 || role === 3,
@@ -766,11 +842,19 @@ onPullDownRefresh(async () => {
 
 .actions {
   margin-top: 10rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.action-slot {
+  flex: 1;
+  min-width: 0;
 }
 
 .item-btn {
   margin: 0;
-  width: 200rpx;
+  width: 100%;
   height: 60rpx;
   border: none;
   border-radius: 10rpx;
@@ -792,13 +876,30 @@ onPullDownRefresh(async () => {
 }
 
 .item-btn-responsible {
-  margin-top: 10rpx;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
 }
 
+.item-btn-export {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+}
+
 .done-text {
+  width: 100%;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #9ca3af;
   font-size: 22rpx;
+  border-radius: 10rpx;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+.action-placeholder {
+  width: 100%;
+  height: 60rpx;
+  border-radius: 10rpx;
+  background: transparent;
 }
 
 .load-more-row {

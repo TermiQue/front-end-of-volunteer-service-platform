@@ -26,7 +26,7 @@
           <view class="hero-fade hero-fade-right"></view>
         </view>
 
-        <view class="hero-caption">归途·桥链 · 青年志愿先锋队</view>
+        <view class="hero-caption">v0.0.6.1</view>
       </view>
 
       <view class="title-wrap">

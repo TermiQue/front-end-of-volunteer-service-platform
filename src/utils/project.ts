@@ -1,4 +1,6 @@
+import { STORAGE_KEYS } from './constants'
 import { requestJson } from './request'
+import { getApiUrl } from './urls'
 
 const LIST_QUERY_CACHE_TTL_MS = 10 * 1000
 
@@ -893,12 +895,11 @@ export const fetchAdminVolunteerDetail = async (userId: number): Promise<AdminVo
 }
 
 export const updateAdminVolunteerRole = async (userId: number, role: 0 | 2) => {
+  const action = role === 2 ? 'promote' : 'demote'
+
   return requestJson({
-    url: `/admin/volunteers/${userId}/role`,
+    url: `/admin/admins/${userId}/${action}`,
     method: 'POST',
-    data: {
-      role
-    }
   })
 }
 
@@ -913,4 +914,35 @@ export const fetchAdminUsers = async () => {
   })
 
   return data.items.map(toAdminUserItem)
+}
+
+export const exportAdminProjectParticipants = async (projectId: number) => {
+  const accessToken = uni.getStorageSync(STORAGE_KEYS.ACCESS_TOKEN) || ''
+  if (!accessToken) {
+    throw new Error('missing access token')
+  }
+
+  const downloadUrl = getApiUrl(`/admin/projects/${projectId}/participants/export`)
+
+  return new Promise<string>((resolve, reject) => {
+    uni.downloadFile({
+      url: downloadUrl,
+      header: {
+        Authorization: `Bearer ${accessToken}`
+      },
+      success: (res) => {
+        if (res.statusCode < 200 || res.statusCode >= 300 || !res.tempFilePath) {
+          reject(new Error(`export failed: ${res.statusCode}`))
+          return
+        }
+
+        uni.saveFile({
+          tempFilePath: res.tempFilePath,
+          success: (saveRes) => resolve(saveRes.savedFilePath || res.tempFilePath),
+          fail: () => resolve(res.tempFilePath)
+        })
+      },
+      fail: (error) => reject(error)
+    })
+  })
 }
