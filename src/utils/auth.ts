@@ -59,14 +59,10 @@ type AvatarCacheRecord = {
 const AVATAR_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 const AVATAR_DOWNLOAD_TIMEOUT_MS = 15 * 1000
 
-let ENABLE_AVATAR_FILE_CACHE: boolean
-// ifdef MP-WEIXIN
-ENABLE_AVATAR_FILE_CACHE = true
-// elif H5
+let ENABLE_AVATAR_FILE_CACHE = true
+// #ifdef H5
 ENABLE_AVATAR_FILE_CACHE = false
-// else
-ENABLE_AVATAR_FILE_CACHE = true
-// endif
+// #endif
 
 const avatarInflight = new Map<string, Promise<string>>()
 
@@ -338,13 +334,11 @@ const getDeviceId = () => {
 }
 
 const getDeviceType = () => {
-  let deviceType: number
   // #ifdef MP-WEIXIN
-  deviceType = 1
-  // #elif H5
-  deviceType = 3
+  return 1
   // #endif
-  return deviceType
+
+  return 3
 }
 
 const getCurrentRoute = () => {
