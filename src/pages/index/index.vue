@@ -212,10 +212,28 @@ const galleryList: GalleryItem[] =
 }
 
 .gallery-card {
+  position: relative;
   overflow: hidden;
   border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 12rpx 28rpx rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.34);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 14rpx 32rpx rgba(15, 23, 42, 0.1),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16rpx) saturate(135%);
+  -webkit-backdrop-filter: blur(16rpx) saturate(135%);
+}
+
+.gallery-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  z-index: 1;
 }
 
 .gallery-image {
@@ -224,9 +242,12 @@ const galleryList: GalleryItem[] =
 }
 
 .gallery-meta {
+  position: relative;
+  z-index: 2;
   padding: 16rpx 20rpx 20rpx;
   font-size: 26rpx;
-  color: #667085;
+  color: rgba(51, 65, 85, 0.92);
+  text-shadow: 0 1rpx 2rpx rgba(255, 255, 255, 0.5);
 }
 
 </style>

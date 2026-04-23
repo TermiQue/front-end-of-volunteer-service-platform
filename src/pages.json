@@ -109,6 +109,15 @@
 			}
 		},
 		{
+			"path": "pages/admin/volunteer-detail",
+			"style": {
+				"navigationBarTitleText": "志愿者详情",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black",
+				"backgroundColor": "#f4f1e6"
+			}
+		},
+		{
 			"path": "pages/admin/project-review",
 			"style": {
 				"navigationBarTitleText": "项目审核",

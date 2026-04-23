@@ -50,22 +50,7 @@
         <view v-else-if="!projects.length" class="state-row">暂无符合条件的进行中项目</view>
 
         <block v-else v-for="item in projects" :key="item.projectId">
-          <view class="project-item">
-            <view class="project-head">
-              <text class="name">{{ item.projectName }}</text>
-              <text class="status">进行中</text>
-            </view>
-            <view class="meta">时间：{{ formatProjectDate(item.designStartTime) }} - {{ formatProjectDate(item.designEndTime) }}</view>
-            <view class="meta">时长：{{ item.designVolunteerHours.toFixed(2) }}h ｜ 创建者：{{ item.creatorName || '未命名用户' }} ｜ 负责人：{{ item.responsibleName || '未分配负责人' }}</view>
-            <view class="meta">描述：{{ item.description || '无' }}</view>
-
-            <view class="actions">
-              <view class="action-row">
-                <button class="item-btn item-btn-checkin" @tap="openQrModal(item, 'checkin')">签到码</button>
-                <button class="item-btn item-btn-checkout" @tap="openQrModal(item, 'checkout')">签退码</button>
-              </view>
-            </view>
-          </view>
+          <InfoLineCard :card="buildCheckInfoCard(item)" />
         </block>
 
         <view v-if="projects.length" class="load-more-row">
@@ -102,6 +87,7 @@ import { computed, ref } from 'vue'
 import { onHide, onUnload, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
@@ -182,6 +168,46 @@ const shortToken = computed(() => {
     ? `${activeToken.value.slice(0, 10)}...${activeToken.value.slice(-10)}`
     : activeToken.value
 })
+
+const buildCheckInfoCard = (item: AdminProjectItem) => {
+  return {
+    title: {
+      text: item.projectName
+    },
+    tag: {
+      text: '进行中',
+      when: 'running',
+      matchers: [
+        { when: 'running', type: 1 as const }
+      ]
+    },
+    rows: [
+      [{ text: `描述：${item.description || '无'}` }],
+      [{ text: `时间：${formatProjectDate(item.designStartTime)} - ${formatProjectDate(item.designEndTime)}` }],
+      [
+        { text: `时长：${item.designVolunteerHours.toFixed(2)}h` },
+        { text: `创建者：${item.creatorName || '未命名用户'}` },
+        { text: `负责人：${item.responsibleName || '未分配负责人'}` }
+      ]
+    ],
+    buttonRows: [[
+      {
+        text: '签到码',
+        type: 2 as const,
+        onTap: async () => {
+          await openQrModal(item, 'checkin')
+        }
+      },
+      {
+        text: '签退码',
+        type: 4 as const,
+        onTap: async () => {
+          await openQrModal(item, 'checkout')
+        }
+      }
+    ]]
+  }
+}
 
 const toMaybeNumber = (value: string) => {
   if (!value.trim()) {
@@ -480,73 +506,6 @@ onPullDownRefresh(async () => {
 
 .list-panel {
   padding: 14rpx 16rpx;
-}
-
-.project-item {
-  border-bottom: 1rpx dashed #d1d5db;
-  padding: 14rpx 0;
-}
-
-.project-item:last-child {
-  border-bottom: none;
-}
-
-.project-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.name {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.status {
-  font-size: 22rpx;
-  color: #334155;
-  background: #e2e8f0;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-}
-
-.meta {
-  margin-top: 6rpx;
-  color: #6b7280;
-  font-size: 22rpx;
-}
-
-.actions {
-  margin-top: 10rpx;
-}
-
-.action-row {
-  display: flex;
-  gap: 12rpx;
-}
-
-.item-btn {
-  margin: 0;
-  flex: 1;
-  height: 60rpx;
-  border: none;
-  border-radius: 10rpx;
-  color: #fff;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.item-btn::after {
-  border: none;
-}
-
-.item-btn-checkin {
-  background: linear-gradient(135deg, #79c89d 0%, #53b88c 100%);
-}
-
-.item-btn-checkout {
-  background: linear-gradient(135deg, #f08a8a 0%, #e26464 100%);
 }
 
 .load-more-row {

@@ -75,45 +75,9 @@
         <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
         <view v-else-if="!volunteerRows.length" class="state-row">暂无符合条件的数据</view>
 
-        <scroll-view v-else class="table-scroll" scroll-x>
-          <view class="table">
-            <view class="table-header">
-              <view class="th th-name">姓名</view>
-              <view class="th th-student-id">学号</view>
-              <view class="th th-phone">手机号</view>
-              <view class="th th-duration">时长</view>
-              <view class="th th-project">项目数</view>
-              <view class="th th-nickname">昵称</view>
-              <view class="th th-role">角色</view>
-              <view v-if="isSuperAdmin" class="th th-role-action">角色操作</view>
-              <view class="th th-detail">详细</view>
-            </view>
-
-            <view v-for="item in volunteerRows" :key="item.userId" class="table-row">
-              <view class="td td-name">{{ item.name || '-' }}</view>
-              <view class="td td-student-id">{{ item.studentId || '-' }}</view>
-              <view class="td td-phone">{{ item.phone || '-' }}</view>
-              <view class="td td-duration">{{ item.volunteerHours.toFixed(2) }}h</view>
-              <view class="td td-project">{{ item.projectCount }}</view>
-              <view class="td td-nickname">{{ item.nickname || '-' }}</view>
-              <view class="td td-role">{{ toRoleLabel(item.role) }}</view>
-              <view v-if="isSuperAdmin" class="td td-role-action-cell">
-                <view
-                  v-if="item.role === 0 || item.role === 2"
-                  class="role-action-btn"
-                  :class="changingRoleUserId === item.userId ? 'disabled' : ''"
-                  @tap="toggleVolunteerRole(item)"
-                >
-                  {{ item.role === 0 ? '提升为管理员' : '降低为志愿者' }}
-                </view>
-                <view v-else class="role-action-empty">-</view>
-              </view>
-              <view class="td td-detail-cell">
-                <view class="detail-btn" @tap="openDetail(item.userId)">查看</view>
-              </view>
-            </view>
-          </view>
-        </scroll-view>
+        <view v-else class="card-list">
+          <InfoLineCard v-for="item in volunteerRows" :key="item.userId" :card="buildVolunteerInfoCard(item)" />
+        </view>
 
         <view v-if="volunteerRows.length" class="load-more-row">
           <text v-if="loadingMore">加载中...</text>
@@ -123,53 +87,12 @@
       </view>
     </view>
 
-    <view v-if="showDetailModal" class="modal-mask" @tap="closeDetailModal">
-      <view class="modal" @tap.stop>
-        <view class="modal-title">志愿者详情</view>
-        <view v-if="detailLoading" class="modal-state">加载中...</view>
-        <view v-else-if="detailError" class="modal-state modal-error">{{ detailError }}</view>
-        <view v-else-if="detailData">
-          <view class="detail-head">
-            <text>{{ detailData.volunteer.name }}（{{ detailData.volunteer.studentId || '-' }}）</text>
-            <text>{{ detailData.volunteer.volunteerHours.toFixed(2) }}h / {{ detailData.volunteer.projectCount }} 项</text>
-          </view>
-
-          <scroll-view class="detail-table-scroll" scroll-x>
-            <view class="detail-table">
-              <view class="detail-row detail-header">
-                <view class="detail-cell col-name">项目</view>
-                <view class="detail-cell col-duration">时长</view>
-                <view class="detail-cell col-status">项目状态</view>
-                <view class="detail-cell col-participant">有效性</view>
-                <view class="detail-cell col-duration">结算时长</view>
-                <view class="detail-cell col-time">签到</view>
-                <view class="detail-cell col-time">签退</view>
-                <view class="detail-cell col-name">备注</view>
-              </view>
-              <view v-for="project in detailData.projects" :key="project.projectId" class="detail-row">
-                <view class="detail-cell col-name">{{ project.projectName }}</view>
-                <view class="detail-cell col-duration">{{ project.durationHours.toFixed(2) }}h</view>
-                <view class="detail-cell col-status">{{ projectStatusTextMap[project.projectStatus] }}</view>
-                <view class="detail-cell col-participant">{{ recordValidityTextMap[project.isValid] }}</view>
-                <view class="detail-cell col-duration">{{ project.settlementHours === null ? '-' : `${project.settlementHours.toFixed(1)}h` }}</view>
-                <view class="detail-cell col-time">{{ formatProjectDate(project.checkInAt || '') }}</view>
-                <view class="detail-cell col-time">{{ formatProjectDate(project.checkOutAt || '') }}</view>
-                <view class="detail-cell col-name">{{ project.note || '-' }}</view>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <view class="modal-actions">
-          <button class="action-btn action-btn-primary" @tap="closeDetailModal">关闭</button>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { computed, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
@@ -179,13 +102,8 @@ import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
-  fetchAdminVolunteerDetail,
   fetchAdminVolunteers,
-  formatProjectDate,
-  projectStatusTextMap,
-  recordValidityTextMap,
   updateAdminVolunteerRole,
-  type AdminVolunteerDetail,
   type AdminVolunteerListItem
 } from '@/utils/project'
 
@@ -205,10 +123,6 @@ const hasMore = ref(true)
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
-const showDetailModal = ref(false)
-const detailLoading = ref(false)
-const detailError = ref('')
-const detailData = ref<AdminVolunteerDetail | null>(null)
 const changingRoleUserId = ref<number | null>(null)
 
 const isSuperAdmin = computed(() => currentRole.value === 3)
@@ -236,6 +150,55 @@ const toRoleLabel = (role: number) => {
   }
 
   return '志愿者'
+}
+
+const buildVolunteerInfoCard = (item: AdminVolunteerListItem) => {
+  const roleKey = item.role === 3 ? 'super_admin' : item.role === 2 ? 'admin' : 'volunteer'
+  const canToggleRole = isSuperAdmin.value && (item.role === 0 || item.role === 2)
+  const isChangingRole = changingRoleUserId.value === item.userId
+
+  return {
+    title: {
+      text: `${item.name || '-'}（${item.nickname || '-'}）`
+    },
+    tag: {
+      text: toRoleLabel(item.role),
+      when: roleKey,
+      matchers: [
+        { when: 'super_admin', type: 3 as const },
+        { when: 'admin', type: 2 as const },
+        { when: 'volunteer', type: 1 as const }
+      ]
+    },
+    rows: [
+      [{ text: `学号：${item.studentId || '-'}` }, { text: `手机号：${item.phone || '-'}` }],
+      [{ text: `时长：${item.volunteerHours.toFixed(2)}h` }, { text: `项目数：${item.projectCount}` }],
+      [{ text: `昵称：${item.nickname || '-'}` }]
+    ],
+    buttonRows: [[
+      canToggleRole
+        ? {
+            text: item.role === 0 ? '提升为管理员' : '降低为志愿者',
+            type: item.role === 0 ? (2 as const) : (4 as const),
+            loading: isChangingRole,
+            loadingText: '处理中...',
+            onTap: async () => {
+              await toggleVolunteerRole(item)
+            }
+          }
+        : {
+            text: '',
+            type: 0 as const
+          },
+      {
+        text: '详细',
+        type: 1 as const,
+        onTap: async () => {
+          await goToDetailPage(item.userId)
+        }
+      }
+    ]]
+  }
 }
 
 const buildQuery = () => ({
@@ -314,26 +277,10 @@ const setSearchMode = (mode: 'name' | 'studentId') => {
   searchKeyword.value = ''
 }
 
-const closeDetailModal = () => {
-  showDetailModal.value = false
-  detailLoading.value = false
-  detailError.value = ''
-  detailData.value = null
-}
-
-const openDetail = async (userId: number) => {
-  showDetailModal.value = true
-  detailLoading.value = true
-  detailError.value = ''
-  detailData.value = null
-
-  try {
-    detailData.value = await fetchAdminVolunteerDetail(userId)
-  } catch {
-    detailError.value = '详情加载失败'
-  } finally {
-    detailLoading.value = false
-  }
+const goToDetailPage = async (userId: number) => {
+  uni.navigateTo({
+    url: `/pages/admin/volunteer-detail?userId=${userId}`
+  })
 }
 
 const toggleVolunteerRole = async (item: AdminVolunteerListItem) => {
@@ -592,6 +539,7 @@ onPullDownRefresh(async () => {
   border-radius: 22rpx;
   box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
   overflow: hidden;
+  padding: 10rpx 14rpx 4rpx;
 }
 
 .state-row {
@@ -605,224 +553,8 @@ onPullDownRefresh(async () => {
   color: #b42318;
 }
 
-.table-scroll {
+.card-list {
   width: 100%;
 }
 
-.table {
-  min-width: 2160rpx;
-}
-
-.table-header,
-.table-row {
-  display: flex;
-  align-items: stretch;
-}
-
-.table-header {
-  background: rgba(248, 250, 252, 0.96);
-}
-
-.th,
-.td {
-  box-sizing: border-box;
-  border-right: 1rpx solid #d7dde3;
-  border-bottom: 1rpx solid #d7dde3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.th {
-  min-height: 92rpx;
-  padding: 18rpx 12rpx;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #111827;
-}
-
-.td {
-  min-height: 110rpx;
-  padding: 14rpx 12rpx;
-  font-size: 24rpx;
-  color: #4b5563;
-}
-
-.th-name,
-.td-name,
-.th-student-id,
-.td-student-id,
-.th-phone,
-.td-phone,
-.th-duration,
-.td-duration,
-.th-project,
-.td-project,
-.th-review,
-.td-review,
-.th-nickname,
-.td-nickname,
-.th-role,
-.td-role,
-.th-role-action,
-.td-role-action-cell,
-.th-detail,
-.td-detail-cell {
-  width: 210rpx;
-}
-
-.table-header .th:last-child,
-.table-row .td:last-child {
-  border-right: none;
-}
-
-.table-row:last-child .td {
-  border-bottom: none;
-}
-
-.td-detail-cell {
-  padding: 0;
-}
-
-.td-role-action-cell {
-  padding: 0;
-}
-
-.role-action-btn {
-  width: 100%;
-  height: 100%;
-  min-height: 110rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 24rpx;
-  font-weight: 600;
-  color: #14532d;
-  background: linear-gradient(135deg, #86efac 0%, #4ade80 100%);
-}
-
-.role-action-btn.disabled {
-  opacity: 0.6;
-}
-
-.role-action-empty {
-  width: 100%;
-  height: 100%;
-  min-height: 110rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  font-size: 24rpx;
-}
-
-.detail-btn {
-  width: 100%;
-  height: 100%;
-  min-height: 110rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.modal-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24rpx;
-  z-index: 1000;
-}
-
-.modal {
-  width: 100%;
-  max-width: 680rpx;
-  max-height: 80vh;
-  overflow: hidden;
-  border-radius: 18rpx;
-  background: #ffffff;
-  padding: 20rpx;
-  box-sizing: border-box;
-}
-
-.modal-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #111827;
-  margin-bottom: 14rpx;
-}
-
-.modal-state {
-  padding: 16rpx 0;
-  color: #64748b;
-  font-size: 24rpx;
-}
-
-.modal-error {
-  color: #b42318;
-}
-
-.detail-head {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  margin-bottom: 12rpx;
-  color: #1f2937;
-  font-size: 24rpx;
-}
-
-.detail-table-scroll {
-  width: 100%;
-  max-height: 50vh;
-}
-
-.detail-table {
-  min-width: 1120rpx;
-}
-
-.detail-row {
-  display: flex;
-}
-
-.detail-cell {
-  border-right: 1rpx solid #e5e7eb;
-  border-bottom: 1rpx solid #e5e7eb;
-  padding: 14rpx 10rpx;
-  box-sizing: border-box;
-  font-size: 22rpx;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.detail-header .detail-cell {
-  font-weight: 700;
-  color: #111827;
-  background: #f8fafc;
-}
-
-.col-name {
-  width: 320rpx;
-}
-
-.col-duration,
-.col-status,
-.col-participant,
-.col-time {
-  width: 160rpx;
-}
-
-.modal-actions {
-  margin-top: 14rpx;
-}
 </style>

@@ -2,8 +2,8 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="title">归途·桥链</view>
-      <view class="sub">“归途·桥链” 青年志愿先锋队</view>
+      <view class="title">归途·桥梁</view>
+      <view class="sub">“归途·桥梁”青年志愿先锋队</view>
 
       <view class="user-card">
         <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
@@ -11,6 +11,7 @@
         <view class="info">
           <view class="info-row"><text class="label">姓名：</text><text class="value">{{ userInfo.name }}</text></view>
           <view class="info-row"><text class="label">学号：</text><text class="value">{{ userInfo.studentId }}</text></view>
+          <view class="info-row"><text class="label">身份：</text><text class="value">{{ identityText }}</text></view>
           <view class="info-row"><text class="label">时长：</text><text class="value">{{ userInfo.duration }}</text></view>
           <view class="info-row"><text class="label">项目：</text><text class="value">{{ userInfo.project }}</text></view>
         </view>
@@ -18,16 +19,34 @@
 
       <view class="action-grid">
         <view class="action-row">
-          <button class="action-btn btn-purple" @tap="navigateTo('/pages/admin/volunteer-info')">志愿者信息管理</button>
-          <button class="action-btn btn-green" @tap="navigateTo('/pages/admin/project-review')">申请审批</button>
+          <view class="action-card" @tap="navigateTo('/pages/admin/volunteer-info')">
+            <image class="action-icon" :src="volunteerInfoIcon" mode="aspectFit" />
+            <text class="action-text">志愿者信息管理</text>
+          </view>
+          <view class="action-card" @tap="navigateTo('/pages/admin/project-review')">
+            <image class="action-icon" :src="projectReviewIcon" mode="aspectFit" />
+            <text class="action-text">申请审批</text>
+          </view>
         </view>
         <view class="action-row">
-          <button class="action-btn btn-amber" @tap="navigateTo('/pages/admin/juvenile')">临界少年信息管理</button>
-          <button class="action-btn btn-sky" @tap="navigateTo('/pages/admin/clockin')">打卡管理</button>
+          <view class="action-card" @tap="navigateTo('/pages/admin/juvenile')">
+            <image class="action-icon" :src="juvenileInfoIcon" mode="aspectFit" />
+            <text class="action-text">临界少年信息管理</text>
+          </view>
+          <view class="action-card" @tap="navigateTo('/pages/admin/clockin')">
+            <image class="action-icon" :src="clockinIcon" mode="aspectFit" />
+            <text class="action-text">打卡管理</text>
+          </view>
         </view>
         <view class="action-row">
-          <button class="action-btn btn-indigo" @tap="navigateTo('/pages/admin/project-manage')">项目管理</button>
-          <button class="action-btn btn-orange" @tap="navigateTo('/pages/admin/check')">签到签退</button>
+          <view class="action-card" @tap="navigateTo('/pages/admin/project-manage')">
+            <image class="action-icon" :src="projectManageIcon" mode="aspectFit" />
+            <text class="action-text">项目管理</text>
+          </view>
+          <view class="action-card" @tap="navigateTo('/pages/admin/check')">
+            <image class="action-icon" :src="checkInOutIcon" mode="aspectFit" />
+            <text class="action-text">签到签退</text>
+          </view>
         </view>
       </view>
     </view>
@@ -37,13 +56,35 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
 import { openFunctionEntry } from '@/utils/navigation'
+import { currentRole } from '@/utils/auth'
 
 const userInfo = useUserInfo({ fallbackName: '管理员' })
+const roleTextMap: Record<number, string> = {
+  0: '志愿者',
+  1: '临界青年',
+  2: '管理员',
+  3: '超级管理员'
+}
+const identityText = computed(() => {
+  const role = currentRole.value
+  if (role === null || role === undefined) {
+    return '管理员'
+  }
+  return roleTextMap[role] || '管理员'
+})
+const volunteerInfoIcon = 'https://img.icons8.com/fluency/96/administrator-male.png'
+const projectReviewIcon = 'https://img.icons8.com/fluency/96/approval.png'
+const juvenileInfoIcon = 'https://img.icons8.com/fluency/96/teenager-male.png'
+const clockinIcon = 'https://img.icons8.com/fluency/96/touch-id.png'
+const projectManageIcon = 'https://img.icons8.com/fluency/96/project-management.png'
+const checkInOutIcon = 'https://img.icons8.com/fluency/96/qr-code.png'
 
 const navigateTo = (url: string) => {
   uni.navigateTo({
@@ -86,7 +127,8 @@ useAuthGuard({
 
 .title,
 .sub,
-.user-card {
+.user-card,
+.action-grid {
   position: relative;
   z-index: 1;
 }
@@ -174,51 +216,36 @@ useAuthGuard({
   margin-bottom: 0;
 }
 
-.action-btn {
+.action-card {
   flex: 1;
   min-width: 0;
-  height: 128rpx;
-  margin: 0;
-  padding: 0 20rpx;
-  border: none;
-  border-radius: 22rpx;
-  box-sizing: border-box;
+  padding-top: 28rpx;
+  padding-bottom: 28rpx;
+  padding-left: 20rpx;
+  padding-right: 20rpx;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  border-radius: 24rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
-  font-size: 28rpx;
-  font-weight: 600;
+  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
+  box-sizing: border-box;
+}
+
+.action-icon {
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 12rpx;
+}
+
+.action-text {
+  font-size: 30rpx;
+  color: #2b7a78;
+  font-weight: 700;
+  letter-spacing: 1rpx;
   text-align: center;
-  line-height: 1.3;
-  box-shadow: 0 14rpx 28rpx rgba(31, 41, 55, 0.12);
-}
-
-.action-btn::after {
-  border: none;
-}
-
-.btn-purple {
-  background: linear-gradient(135deg, #6366f1 0%, #5f60e7 100%);
-}
-
-.btn-green {
-  background: linear-gradient(135deg, #79c89d 0%, #53b88c 100%);
-}
-
-.btn-amber {
-  background: linear-gradient(135deg, #ebb04f 0%, #dca13d 100%);
-}
-
-.btn-sky {
-  background: linear-gradient(135deg, #8bc3df 0%, #5baed8 100%);
-}
-
-.btn-indigo {
-  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
-}
-
-.btn-orange {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  line-height: 1.35;
 }
 </style>

@@ -1,9 +1,9 @@
-<template>
+﻿<template>
   <view class="container">
     <BackgroundGlow />
 
-    <view class="title">归途·桥链</view>
-    <view class="sub">“归途·桥链” 青年志愿先锋队</view>
+    <view class="title">归途·桥梁</view>
+    <view class="sub">“归途·桥梁”青年志愿先锋队</view>
 
     <view class="user-card">
       <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
@@ -11,6 +11,7 @@
       <view class="info">
         <view class="info-row"><text class="label">姓名：</text><text class="value">{{ userInfo.name }}</text></view>
         <view class="info-row"><text class="label">学号：</text><text class="value">{{ userInfo.studentId }}</text></view>
+        <view class="info-row"><text class="label">身份：</text><text class="value">{{ identityText }}</text></view>
         <view class="info-row"><text class="label">时长：</text><text class="value">{{ userInfo.duration }}</text></view>
         <view class="info-row"><text class="label">项目：</text><text class="value">{{ userInfo.project }}</text></view>
       </view>
@@ -87,12 +88,12 @@
         </view>
 
         <view class="filter-item">
-          <text class="filter-label">最小时长(h)</text>
+          <text class="filter-label">最小时长 (h)</text>
           <PopupDurationPicker v-model="hourMin" title="选择最小时长" placeholder="例如 1.5" :max-hours="24" />
         </view>
 
         <view class="filter-item">
-          <text class="filter-label">最大时长(h)</text>
+          <text class="filter-label">最大时长 (h)</text>
           <PopupDurationPicker v-model="hourMax" title="选择最大时长" placeholder="例如 8" :max-hours="24" />
         </view>
       </view>
@@ -101,32 +102,8 @@
       <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
       <view v-else-if="!filteredHistory.length" class="state-row">暂无符合条件的项目记录</view>
 
-      <block v-else v-for="item in filteredHistory" :key="item.id">
-        <view class="history-item">
-          <view class="history-head">
-            <text class="history-name">{{ item.projectName }}</text>
-          </view>
-          <view class="history-meta">
-            <text>描述：{{ item.projectDescription }}</text>
-          </view>
-          <view class="history-meta">
-            <text>时间：{{ item.designTimeText }}</text>
-          </view>
-          <view class="history-meta">
-            <text>创建：{{ item.creatorText }}</text>
-            <text>负责：{{ item.responsibleText }}</text>
-          </view>
-          <view class="history-meta">
-            <text>参与：{{ item.participationText }}</text>
-          </view>
-          <view class="history-meta">
-            <text>结算：{{ item.settlementText }}</text>
-          </view>
-          <view class="history-meta">
-            <text>记录：{{ item.validityText }}</text>
-            <text>类型：{{ item.typeText }}</text>
-          </view>
-        </view>
+      <block v-else>
+        <InfoLineCard v-for="item in filteredHistory" :key="item.id" :card="item.card" />
       </block>
 
       <view v-if="!loading && filteredHistory.length" class="load-more-row">
@@ -146,13 +123,14 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
+import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
+import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import {
-  recordValidityTextMap,
   fetchVolunteerProjects,
   formatProjectDate,
   scanProjectQrToken,
@@ -169,18 +147,42 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 type HistoryViewItem = {
   id: number
-  projectName: string
-  projectDescription: string
-  creatorText: string
-  responsibleText: string
-  designTimeText: string
-  participationText: string
-  settlementText: string
-  validityText: string
-  typeText: string
+  card: {
+    title: {
+      text: string
+      className?: string
+    }
+    tag: {
+      text: string
+      when: string
+      matchers: Array<{
+        when: string
+        type: 1 | 2 | 3
+      }>
+    }
+    rows: Array<
+      Array<{
+        text: string
+        className?: string
+      }>
+    >
+  }
 }
 
 const userInfo = useUserInfo({ fallbackName: '志愿者' })
+const roleTextMap: Record<number, string> = {
+  0: '志愿者',
+  1: '临界青年',
+  2: '管理员',
+  3: '超级管理员'
+}
+const identityText = computed(() => {
+  const role = currentRole.value
+  if (role === null || role === undefined) {
+    return '志愿者'
+  }
+  return roleTextMap[role] || '志愿者'
+})
 
 const historySource = ref<VolunteerProjectRecord[]>([])
 const loading = ref(false)
@@ -421,15 +423,30 @@ const filteredHistory = computed<HistoryViewItem[]>(() => {
     })
     .map((item) => ({
       id: item.id,
-      projectName: item.projectName,
-      projectDescription: item.projectDescription || '-',
-      creatorText: item.creatorName || '未命名用户',
-      responsibleText: item.responsibleName || '未分配负责人',
-      designTimeText: `${formatProjectDate(item.projectDesignStartTime)} - ${formatProjectDate(item.projectDesignEndTime)}`,
-      participationText: `${formatActualTime(item.actualCheckInTime)} - ${formatActualTime(item.actualCheckOutTime)}`,
-      settlementText: item.settlementHours === null ? '-' : `${item.settlementHours.toFixed(1)}h`,
-      validityText: recordValidityTextMap[item.projectIsValid],
-      typeText: resolveRecordType(item.note)
+      card: {
+        title: {
+          text: item.projectName
+        },
+        tag: {
+          text: item.settlementHours === null ? '-' : `${item.settlementHours.toFixed(1)}`,
+          when: item.projectIsValid === 1 ? 'valid' : 'invalid',
+          matchers: [
+            { when: 'default', type: 1 },
+            { when: 'valid', type: 2 },
+            { when: 'invalid', type: 3 }
+          ]
+        },
+        rows: [
+          [{ text: `描述：${item.projectDescription || '-'}` }],
+          [{ text: `时间：${formatProjectDate(item.projectDesignStartTime)} - ${formatProjectDate(item.projectDesignEndTime)}` }],
+          [{ text: `参与：${formatActualTime(item.actualCheckInTime)} - ${formatActualTime(item.actualCheckOutTime)}` }],
+          [
+            { text: `创建：${item.creatorName || '未命名用户'}` },
+            { text: `负责：${item.responsibleName || '未分配负责人'}` },
+            { text: `类型：${resolveRecordType(item.note)}` }
+          ]
+        ]
+      }
     }))
 })
 
@@ -683,53 +700,6 @@ onPullDownRefresh(async () => {
 
 .state-row.error {
   color: #b42318;
-}
-
-.history-item {
-  padding: 14rpx 0;
-  border-bottom: 1rpx dashed #e6e8ec;
-}
-
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6rpx;
-  gap: 16rpx;
-}
-
-.history-name {
-  font-size: 25rpx;
-  color: #1f2d3d;
-  font-weight: 600;
-}
-
-.history-status {
-  font-size: 20rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 999rpx;
-}
-
-.history-status.done {
-  color: #0f766e;
-  background: #ccfbf1;
-}
-
-.history-status.ongoing {
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.history-meta {
-  font-size: 21rpx;
-  color: #667085;
-  display: flex;
-  gap: 20rpx;
-  margin-top: 4rpx;
 }
 
 .load-more-row {

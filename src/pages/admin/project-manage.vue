@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <BackgroundGlow />
 
@@ -66,60 +66,7 @@
         <view v-else-if="!projects.length" class="state-row">暂无符合条件的项目</view>
 
         <block v-else v-for="item in projects" :key="item.projectId">
-          <view class="project-item">
-            <view class="project-head">
-              <text class="name">项目：{{ item.projectName }}</text>
-              <text class="status-badge" :class="getProjectCardStatus(item).className">{{ getProjectCardStatus(item).text }}</text>
-            </view>
-            <view class="meta">时间：{{ formatProjectDate(item.designStartTime) }} - {{ formatProjectDate(item.designEndTime) }}</view>
-            <view class="meta">时长：{{ item.designVolunteerHours.toFixed(2) }}h</view>
-            <view class="meta">创建：{{ item.creatorName || '未命名用户' }}　负责：{{ item.responsibleName || '未分配负责人' }}</view>
-            <view class="meta">描述：{{ item.description || '无' }}</view>
-
-            <view class="actions">
-              <view class="action-slot">
-                <button
-                  v-if="canOperateProject(item) && item.status === 0"
-                  class="item-btn item-btn-start"
-                  @tap="updateStatus(item.projectId, 'start')"
-                >
-                  开启项目
-                </button>
-                <button
-                  v-else-if="canOperateProject(item) && item.status === 1"
-                  class="item-btn item-btn-end"
-                  @tap="updateStatus(item.projectId, 'end')"
-                >
-                  结束项目
-                </button>
-                <view v-else-if="canOperateProject(item)" class="done-text">已结束项目不可变更</view>
-                <view v-else class="action-placeholder" aria-hidden="true"></view>
-              </view>
-
-              <view class="action-slot">
-                <button
-                  v-if="isSuperAdmin && item.status !== 2"
-                  class="item-btn item-btn-responsible"
-                  @tap="openResponsibleModal(item)"
-                >
-                  修改负责人
-                </button>
-                <view v-else class="action-placeholder" aria-hidden="true"></view>
-              </view>
-
-              <view class="action-slot">
-                <button
-                  v-if="canExportProject(item)"
-                  class="item-btn item-btn-export"
-                  :disabled="exportingProjectId === item.projectId"
-                  @tap="exportParticipants(item)"
-                >
-                  {{ exportingProjectId === item.projectId ? '导出中...' : '导出参与信息' }}
-                </button>
-                <view v-else class="action-placeholder" aria-hidden="true"></view>
-              </view>
-            </view>
-          </view>
+          <InfoLineCard :card="buildProjectInfoCard(item)" />
         </block>
 
         <view v-if="projects.length" class="load-more-row">
@@ -215,6 +162,7 @@ import { computed, reactive, ref } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import PopupTimePicker from '@/components/PopupTimePicker.vue'
@@ -364,6 +312,91 @@ const getProjectCardStatus = (item: AdminProjectItem) => {
 
 const canExportProject = (item: AdminProjectItem) => {
   return canOperateProject(item) && item.status === 2
+}
+
+const buildProjectInfoCard = (item: AdminProjectItem) => {
+  const statusInfo = getProjectCardStatus(item)
+  const canOperate = canOperateProject(item)
+  const canExport = canExportProject(item)
+  const isExporting = exportingProjectId.value === item.projectId
+
+  const firstButton = canOperate
+    ? item.status === 0
+      ? {
+          text: '开启项目',
+          type: 2 as const,
+          onTap: async () => {
+            await updateStatus(item.projectId, 'start')
+          }
+        }
+      : item.status === 1
+        ? {
+            text: '结束项目',
+            type: 3 as const,
+            onTap: async () => {
+              await updateStatus(item.projectId, 'end')
+            }
+          }
+        : {
+            text: '',
+            type: 0 as const
+          }
+    : {
+        text: '',
+        type: 0 as const
+      }
+
+  const secondButton = isSuperAdmin.value && item.status !== 2
+    ? {
+        text: '修改负责人',
+        type: 1 as const,
+        onTap: () => {
+          openResponsibleModal(item)
+        }
+      }
+    : {
+        text: '',
+        type: 0 as const
+      }
+
+  const thirdButton = canExport
+    ? {
+        text: isExporting ? '导出中...' : '导出参与信息',
+        type: 1 as const,
+        loading: isExporting,
+        loadingText: '导出中...',
+        onTap: async () => {
+          await exportParticipants(item)
+        }
+      }
+    : {
+        text: '',
+        type: 0 as const
+      }
+
+  return {
+    title: {
+      text: item.projectName
+    },
+    tag: {
+      text: statusInfo.text,
+      when: statusInfo.className === 'status-running' ? 'running' : 'neutral',
+      matchers: [
+        { when: 'running', type: 2 as const },
+        { when: 'neutral', type: 1 as const }
+      ]
+    },
+    rows: [
+      [{ text: `描述：${item.description || '无'}` }],
+      [{ text: `时间：${formatProjectDate(item.designStartTime)} - ${formatProjectDate(item.designEndTime)}` }],
+      [
+        { text: `创建：${item.creatorName || '未命名用户'}` },
+        { text: `负责：${item.responsibleName || '未分配负责人'}` },
+        { text: `时长：${item.designVolunteerHours.toFixed(2)}h` }
+      ]
+    ],
+    buttonRows: [[firstButton, secondButton, thirdButton]]
+  }
 }
 
 const toIsoTime = (value: string, endOfDay = false) => {
