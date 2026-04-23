@@ -105,30 +105,26 @@
         <view class="history-item">
           <view class="history-head">
             <text class="history-name">{{ item.projectName }}</text>
-            <text class="history-status" :class="item.statusClass">{{ item.statusText }}</text>
           </view>
           <view class="history-meta">
             <text>描述：{{ item.projectDescription }}</text>
           </view>
           <view class="history-meta">
-            <text>创建者：{{ item.creatorText }}</text>
-            <text>负责人：{{ item.responsibleText }}</text>
+            <text>时间：{{ item.designTimeText }}</text>
           </view>
           <view class="history-meta">
-            <text>设计时间：{{ item.designTimeText }}</text>
+            <text>创建：{{ item.creatorText }}</text>
+            <text>负责：{{ item.responsibleText }}</text>
           </view>
           <view class="history-meta">
-            <text>实际签到：{{ item.actualCheckInText }}</text>
-          </view>
-          <view class="history-meta">
-            <text>实际签退：{{ item.actualCheckOutText }}</text>
+            <text>参与：{{ item.participationText }}</text>
           </view>
           <view class="history-meta">
             <text>结算：{{ item.settlementText }}</text>
           </view>
           <view class="history-meta">
             <text>记录：{{ item.validityText }}</text>
-            <text>备注：{{ item.noteText }}</text>
+            <text>类型：{{ item.typeText }}</text>
           </view>
         </view>
       </block>
@@ -159,7 +155,6 @@ import {
   recordValidityTextMap,
   fetchVolunteerProjects,
   formatProjectDate,
-  projectStatusTextMap,
   scanProjectQrToken,
   type VolunteerProjectRecord
 } from '@/utils/project'
@@ -178,14 +173,11 @@ type HistoryViewItem = {
   projectDescription: string
   creatorText: string
   responsibleText: string
-  statusText: string
-  statusClass: 'done' | 'ongoing'
   designTimeText: string
-  actualCheckInText: string
-  actualCheckOutText: string
+  participationText: string
   settlementText: string
   validityText: string
-  noteText: string
+  typeText: string
 }
 
 const userInfo = useUserInfo({ fallbackName: '志愿者' })
@@ -219,6 +211,27 @@ const formatActualTime = (value: string | number | null) => {
   }
 
   return formatProjectDate(String(value))
+}
+
+const resolveRecordType = (note: string | null) => {
+  if (!note) {
+    return '-'
+  }
+
+  const lowered = note.toLowerCase()
+  if (lowered.includes('auto')) {
+    return '自动'
+  }
+
+  if (note.includes('申诉')) {
+    return '申诉'
+  }
+
+  if (note.includes('更改') || note.includes('时长') || note.includes('申请通过')) {
+    return '更改'
+  }
+
+  return note
 }
 
 const toDurationHours = (startIso: string, endIso: string) => {
@@ -341,8 +354,7 @@ const loadHistory = async (reset = false) => {
       pageSize: PAGE_SIZE
     })
 
-    const pageItems = data.items.filter((item) => item.projectStatus !== 0)
-    historySource.value = appendUniqueRecords(historySource.value, pageItems)
+    historySource.value = appendUniqueRecords(historySource.value, data.items)
 
     const loadedCount = historySource.value.length
     hasMore.value = loadedCount < data.total && data.items.length === PAGE_SIZE
@@ -413,14 +425,11 @@ const filteredHistory = computed<HistoryViewItem[]>(() => {
       projectDescription: item.projectDescription || '-',
       creatorText: item.creatorName || '未命名用户',
       responsibleText: item.responsibleName || '未分配负责人',
-      statusText: projectStatusTextMap[item.projectStatus],
-      statusClass: item.projectStatus === 1 ? 'ongoing' : 'done',
       designTimeText: `${formatProjectDate(item.projectDesignStartTime)} - ${formatProjectDate(item.projectDesignEndTime)}`,
-      actualCheckInText: formatActualTime(item.actualCheckInTime),
-      actualCheckOutText: formatActualTime(item.actualCheckOutTime),
+      participationText: `${formatActualTime(item.actualCheckInTime)} - ${formatActualTime(item.actualCheckOutTime)}`,
       settlementText: item.settlementHours === null ? '-' : `${item.settlementHours.toFixed(1)}h`,
       validityText: recordValidityTextMap[item.projectIsValid],
-      noteText: item.note || '-'
+      typeText: resolveRecordType(item.note)
     }))
 })
 
