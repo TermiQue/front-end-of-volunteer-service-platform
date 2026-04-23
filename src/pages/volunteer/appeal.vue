@@ -56,6 +56,7 @@ import {
   createAppeal,
   fetchAppealTargets,
   fetchMyAppeals,
+  formatProjectDate,
   type AppealTargetItem,
   type AppealTargetType
 } from '@/utils/project'
@@ -73,8 +74,7 @@ const PAGE_SIZE = 50
 const appealTargetOptions = computed(() =>
   appealTargets.value.map((item) => ({
     participantId: item.participantId,
-    projectId: item.project.projectId,
-    label: `${item.project.name} (${item.type === 1 ? '无效记录申诉' : '时长变更'})`
+    label: `${item.projectName}｜${item.type === 1 ? '无效记录申诉' : '时长变更'}｜负责人:${item.responsibleName || '-'}｜签到:${formatActualTime(item.actualCheckInTime)}｜签退:${formatActualTime(item.actualCheckOutTime)}`
   }))
 )
 
@@ -92,11 +92,19 @@ const resetForm = () => {
   appealReason.value = ''
 }
 
+const formatActualTime = (value: string | number | null) => {
+  if (value === 0 || value === '0' || value === null || value === undefined || value === '') {
+    return '无'
+  }
+
+  return formatProjectDate(String(value))
+}
+
 const loadAppealTargets = async () => {
   loadingTargets.value = true
   try {
     const data = await fetchAppealTargets(appealTypeFilter.value === 0 ? {} : { type: appealTypeFilter.value })
-    appealTargets.value = data.items.filter((item) => !item.hasPendingAppeal)
+    appealTargets.value = data.items
     appealTargetIndex.value = 0
   } catch {
     appealTargets.value = []
@@ -119,7 +127,7 @@ const onAppealTargetChange = (event: { detail: { value: string } }) => {
   appealTargetIndex.value = Number(event.detail.value)
 }
 
-const hasPendingAppealForProject = async (projectId: number) => {
+const hasPendingAppealForProject = async (projectName: string) => {
   let page = 1
   let totalLoaded = 0
   let total = Number.POSITIVE_INFINITY
@@ -131,7 +139,7 @@ const hasPendingAppealForProject = async (projectId: number) => {
       pageSize: PAGE_SIZE
     })
 
-    if (data.items.some((item) => item.projectId === projectId)) {
+    if (data.items.some((item) => item.status === 0 && item.projectName === projectName)) {
       return true
     }
 
@@ -173,7 +181,7 @@ const submitAppeal = async () => {
 
   submitting.value = true
   try {
-    const hasProjectPending = await hasPendingAppealForProject(selected.project.projectId)
+    const hasProjectPending = await hasPendingAppealForProject(selected.projectName)
     if (hasProjectPending) {
       uni.showToast({ title: '该项目已有审核中的申请，暂不可重复发起', icon: 'none' })
       return

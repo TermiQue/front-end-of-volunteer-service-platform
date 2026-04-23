@@ -22,13 +22,20 @@
             <text class="progress-status" :class="`s-${item.status}`">{{ progressStatusText(item.status) }}</text>
           </view>
           <view class="progress-meta">
-            <text>申请时长：{{ item.time.toFixed(1) }}h</text>
+            <text>申请类型：{{ item.type === 1 ? '无效记录申诉' : '时长变更' }}</text>
+          </view>
+          <view class="progress-meta">
+            <text>期望审核员：{{ item.expectedReviewerName || '-' }}</text>
+            <text>实际审核员：{{ item.actualReviewerName || '-' }}</text>
           </view>
           <view class="progress-meta">
             <text>申请时间：{{ formatProjectDate(item.applyTime) }}</text>
           </view>
           <view class="progress-meta">
             <text>申请理由：{{ item.reason || '-' }}</text>
+          </view>
+          <view class="progress-meta">
+            <text>审核时间：{{ item.reviewTime ? formatProjectDate(item.reviewTime) : '待审核' }}</text>
           </view>
           <view class="progress-meta">
             <text>审核意见：{{ item.reviewComment || '-' }}</text>

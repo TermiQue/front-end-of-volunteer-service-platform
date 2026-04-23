@@ -108,10 +108,22 @@
             <text class="history-status" :class="item.statusClass">{{ item.statusText }}</text>
           </view>
           <view class="history-meta">
-            <text>时间：{{ item.timeText }}</text>
+            <text>描述：{{ item.projectDescription }}</text>
           </view>
           <view class="history-meta">
-            <text>时长：{{ item.hoursText }}</text>
+            <text>创建者：{{ item.creatorText }}</text>
+            <text>负责人：{{ item.responsibleText }}</text>
+          </view>
+          <view class="history-meta">
+            <text>设计时间：{{ item.designTimeText }}</text>
+          </view>
+          <view class="history-meta">
+            <text>实际签到：{{ item.actualCheckInText }}</text>
+          </view>
+          <view class="history-meta">
+            <text>实际签退：{{ item.actualCheckOutText }}</text>
+          </view>
+          <view class="history-meta">
             <text>结算：{{ item.settlementText }}</text>
           </view>
           <view class="history-meta">
@@ -163,10 +175,14 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE
 type HistoryViewItem = {
   id: number
   projectName: string
+  projectDescription: string
+  creatorText: string
+  responsibleText: string
   statusText: string
   statusClass: 'done' | 'ongoing'
-  timeText: string
-  hoursText: string
+  designTimeText: string
+  actualCheckInText: string
+  actualCheckOutText: string
   settlementText: string
   validityText: string
   noteText: string
@@ -195,6 +211,23 @@ const toMaybeNumber = (value: string) => {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+const formatActualTime = (value: string | number | null) => {
+  if (value === 0 || value === '0' || value === null || value === undefined || value === '') {
+    return '未签到/签退'
+  }
+
+  return formatProjectDate(String(value))
+}
+
+const toDurationHours = (startIso: string, endIso: string) => {
+  const startTs = new Date(startIso).getTime()
+  const endTs = new Date(endIso).getTime()
+  if (Number.isNaN(startTs) || Number.isNaN(endTs) || endTs <= startTs) {
+    return 0
+  }
+  return (endTs - startTs) / (1000 * 60 * 60)
 }
 
 const dayStartTs = (value: string) => {
@@ -351,16 +384,18 @@ const filteredHistory = computed<HistoryViewItem[]>(() => {
         return false
       }
 
-      if (minHours !== null && item.durationHours < minHours) {
+      const designHours = toDurationHours(item.projectDesignStartTime, item.projectDesignEndTime)
+
+      if (minHours !== null && designHours < minHours) {
         return false
       }
 
-      if (maxHours !== null && item.durationHours > maxHours) {
+      if (maxHours !== null && designHours > maxHours) {
         return false
       }
 
-      const startTs = new Date(item.startTime).getTime()
-      const endTs = new Date(item.endTime).getTime()
+      const startTs = new Date(item.projectDesignStartTime).getTime()
+      const endTs = new Date(item.projectDesignEndTime).getTime()
 
       if (startLimit !== null && !Number.isNaN(startTs) && startTs < startLimit) {
         return false
@@ -375,12 +410,16 @@ const filteredHistory = computed<HistoryViewItem[]>(() => {
     .map((item) => ({
       id: item.id,
       projectName: item.projectName,
+      projectDescription: item.projectDescription || '-',
+      creatorText: item.creatorName || '未命名用户',
+      responsibleText: item.responsibleName || '未分配负责人',
       statusText: projectStatusTextMap[item.projectStatus],
       statusClass: item.projectStatus === 1 ? 'ongoing' : 'done',
-      timeText: `${formatProjectDate(item.startTime)} - ${formatProjectDate(item.endTime)}`,
-      hoursText: `${item.durationHours.toFixed(2)}h`,
+      designTimeText: `${formatProjectDate(item.projectDesignStartTime)} - ${formatProjectDate(item.projectDesignEndTime)}`,
+      actualCheckInText: formatActualTime(item.actualCheckInTime),
+      actualCheckOutText: formatActualTime(item.actualCheckOutTime),
       settlementText: item.settlementHours === null ? '-' : `${item.settlementHours.toFixed(1)}h`,
-      validityText: recordValidityTextMap[item.isValid],
+      validityText: recordValidityTextMap[item.projectIsValid],
       noteText: item.note || '-'
     }))
 })

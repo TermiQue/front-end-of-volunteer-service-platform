@@ -12,35 +12,40 @@ export type VolunteerProjectRecord = {
   id: number
   projectId: number
   userId: number
-  checkInAt: string | null
-  checkOutAt: string | null
-  isValid: RecordValidity
+  actualCheckInTime: string | number | null
+  actualCheckOutTime: string | number | null
+  projectIsValid: RecordValidity
   settlementHours: number | null
   note: string | null
   projectName: string
   projectDescription: string
-  startTime: string
-  endTime: string
-  durationHours: number
-  projectStatus: ProjectStatus
-  createdById: number
+  creatorName: string
+  creatorId: number
+  responsibleName: string
   responsibleId: number
-  projectCreatedAt: string
-  projectUpdatedAt: string
+  projectDesignStartTime: string
+  projectDesignEndTime: string
+  projectStatus: ProjectStatus
 }
 
 export type AdminProjectItem = {
   projectId: number
-  name: string
+  projectName: string
   description: string
+  designStartTime: string
+  designEndTime: string
+  designVolunteerHours: number
+  status: ProjectStatus
+  creatorId: number
+  creatorName: string
+  responsibleId: number
+  responsibleName: string
+  // Legacy aliases to keep existing pages stable.
+  name: string
   startTime: string
   endTime: string
   durationHours: number
-  status: ProjectStatus
   createdById: number
-  responsibleId: number
-  createdAt: string
-  updatedAt: string
 }
 
 type PagedResult<T> = {
@@ -51,7 +56,7 @@ type PagedResult<T> = {
 }
 
 export type VolunteerProjectQuery = {
-  projectStatus?: 1 | 2
+  projectStatus?: ProjectStatus
   page?: number
   pageSize?: number
 }
@@ -68,8 +73,6 @@ export type AdminProjectQuery = {
   status?: ProjectStatus
   createdById?: number
   responsibleId?: number
-  createdTimeFrom?: string
-  createdTimeTo?: string
   page?: number
   pageSize?: number
 }
@@ -118,19 +121,19 @@ export type AppealTargetType = 1 | 2
 export type AppealTargetItem = {
   type: AppealTargetType
   participantId: number
-  hasPendingAppeal: boolean
-  project: {
-    projectId: number
-    name: string
-    responsibleId: number
-  }
-  participant: {
-    isValid: RecordValidity
-    settlementHours: number | null
-    checkInAt: string | null
-    checkOutAt: string | null
-    note: string | null
-  }
+  projectName: string
+  projectDescription: string
+  creatorName: string
+  creatorId: number
+  responsibleName: string
+  responsibleId: number
+  projectDesignStartTime: string
+  projectDesignEndTime: string
+  actualCheckInTime: string | number | null
+  actualCheckOutTime: string | number | null
+  isValid: RecordValidity
+  settlementHours: number | null
+  note: string | null
 }
 
 export type AppealTargetQuery = {
@@ -147,10 +150,11 @@ export type MyAppealQuery = {
 
 export type MyAppealItem = {
   id: number
+  type: AppealTargetType
   participantId: number
-  projectId: number
   projectName: string
-  time: number
+  expectedReviewerName: string
+  actualReviewerName: string
   reason: string
   status: AppealStatus
   applyTime: string
@@ -237,24 +241,66 @@ export type AdminUserItem = {
 type VolunteerProjectsResponse = {
   items: Array<{
     id: number
-    project_id: number
-    user_id: number
-    check_in_at: string | null
-    check_out_at: string | null
-    is_valid: RecordValidity
-    settlement_hours: string | number | null
-    note: string | null
-    project_name: string
-    project_description: string
-    start_time: string
-    end_time: string
-    duration_hours: string
-    project_status: ProjectStatus
+    projectId?: number
+    project_id?: number
+    userId?: number
+    user_id?: number
+    projectStatus?: ProjectStatus
+    project_status?: ProjectStatus
+    project?: {
+      projectName?: string
+      project_name?: string
+      projectDescription?: string
+      project_description?: string
+      status?: ProjectStatus
+      creatorName?: string
+      creator_name?: string
+      creatorId?: number
+      creator_id?: number
+      createdById?: number
+      created_by_id?: number
+      responsibleName?: string
+      responsible_name?: string
+      responsibleId?: number
+      responsible_id?: number
+      projectDesignStartTime?: string
+      project_design_start_time?: string
+      designStartTime?: string
+      design_start_time?: string
+      projectDesignEndTime?: string
+      project_design_end_time?: string
+      designEndTime?: string
+      design_end_time?: string
+    }
+    participant?: {
+      actualCheckInTime?: string | number | null
+      actual_check_in_time?: string | number | null
+      checkInAt?: string | number | null
+      check_in_at?: string | number | null
+      actualCheckOutTime?: string | number | null
+      actual_check_out_time?: string | number | null
+      checkOutAt?: string | number | null
+      check_out_at?: string | number | null
+      projectIsValid?: RecordValidity
+      project_is_valid?: RecordValidity
+      isValid?: RecordValidity
+      is_valid?: RecordValidity
+      settlementHours?: string | number | null
+      settlement_hours?: string | number | null
+      note?: string | null
+    }
+    check_in_at?: string | number | null
+    check_out_at?: string | number | null
+    is_valid?: RecordValidity
+    settlement_hours?: string | number | null
+    note?: string | null
+    project_name?: string
+    project_description?: string
+    start_time?: string
+    end_time?: string
     created_by_id?: number
     created_by?: number
     responsible_id?: number
-    project_created_at: string
-    project_updated_at: string
   }>
   total: number
   page: number
@@ -263,18 +309,37 @@ type VolunteerProjectsResponse = {
 
 type AdminProjectsResponse = {
   items: Array<{
-    project_id: number
-    name: string
-    description: string
-    start_time: string
-    end_time: string
-    duration_hours: string
+    projectId?: number
+    project_id?: number
+    projectName?: string
+    project_name?: string
+    name?: string
+    description?: string
+    projectDescription?: string
+    designStartTime?: string
+    design_start_time?: string
+    startTime?: string
+    start_time?: string
+    designEndTime?: string
+    design_end_time?: string
+    endTime?: string
+    end_time?: string
+    designVolunteerHours?: string | number
+    design_volunteer_hours?: string
+    durationHours?: string | number
+    duration_hours?: string
     status: ProjectStatus
+    creatorId?: number
+    creator_id?: number
+    createdById?: number
     created_by_id?: number
     created_by?: number
+    creatorName?: string
+    creator_name?: string
+    responsibleId?: number
     responsible_id?: number
-    created_at: string
-    updated_at: string
+    responsibleName?: string
+    responsible_name?: string
   }>
   total: number
   page: number
@@ -290,18 +355,37 @@ type ProjectStatusResponse = {
 
 type CreateProjectResponse = {
   project: {
+    projectId?: number
     project_id: number
-    name: string
-    description: string
-    start_time: string
-    end_time: string
-    duration_hours: string
+    projectName?: string
+    project_name?: string
+    name?: string
+    description?: string
+    projectDescription?: string
+    designStartTime?: string
+    design_start_time?: string
+    startTime?: string
+    start_time?: string
+    designEndTime?: string
+    design_end_time?: string
+    endTime?: string
+    end_time?: string
+    designVolunteerHours?: string | number
+    design_volunteer_hours?: string
+    durationHours?: string | number
+    duration_hours?: string
     status: ProjectStatus
+    creatorId?: number
+    creator_id?: number
+    createdById?: number
     created_by_id?: number
     created_by?: number
+    creatorName?: string
+    creator_name?: string
+    responsibleId?: number
     responsible_id?: number
-    created_at: string
-    updated_at: string
+    responsibleName?: string
+    responsible_name?: string
   }
 }
 
@@ -389,20 +473,40 @@ type AppealTargetsResponse = {
     type: number
     participantId?: number
     participant_id?: number
-    hasPendingAppeal?: boolean
-    has_pending_appeal?: boolean
     project?: {
+      projectName?: string
+      project_name?: string
+      projectDescription?: string
+      project_description?: string
+      creatorName?: string
+      creator_name?: string
+      creatorId?: number
+      creator_id?: number
       projectId?: number
       project_id?: number
       name?: string
+      responsibleName?: string
+      responsible_name?: string
       responsibleId?: number
       responsible_id?: number
+      projectDesignStartTime?: string
+      project_design_start_time?: string
+      designStartTime?: string
+      design_start_time?: string
+      projectDesignEndTime?: string
+      project_design_end_time?: string
+      designEndTime?: string
+      design_end_time?: string
     }
     participant?: {
+      actualCheckInTime?: string | number | null
+      actual_check_in_time?: string | number | null
       isValid?: RecordValidity
       is_valid?: RecordValidity
       settlementHours?: string | number | null
       settlement_hours?: string | number | null
+      actualCheckOutTime?: string | number | null
+      actual_check_out_time?: string | number | null
       checkInAt?: string | null
       check_in_at?: string | null
       checkOutAt?: string | null
@@ -475,37 +579,79 @@ const pickNested = (source: AdminAppealRaw, key: string) => {
 
 const toVolunteerRecord = (item: VolunteerProjectsResponse['items'][number]): VolunteerProjectRecord => ({
   id: item.id,
-  projectId: item.project_id,
-  userId: item.user_id,
-  checkInAt: item.check_in_at,
-  checkOutAt: item.check_out_at,
-  isValid: toRecordValidity(item.is_valid),
-  settlementHours: toMaybeNumber(item.settlement_hours),
-  note: item.note || null,
-  projectName: item.project_name,
-  projectDescription: item.project_description,
-  startTime: item.start_time,
-  endTime: item.end_time,
-  durationHours: toNumber(item.duration_hours),
-  projectStatus: item.project_status,
-  createdById: item.created_by_id ?? item.created_by ?? 0,
-  responsibleId: item.responsible_id ?? 0,
-  projectCreatedAt: item.project_created_at,
-  projectUpdatedAt: item.project_updated_at
+  projectId: item.projectId ?? item.project_id ?? 0,
+  userId: item.userId ?? item.user_id ?? 0,
+  actualCheckInTime:
+    item.participant?.actualCheckInTime ??
+    item.participant?.actual_check_in_time ??
+    item.participant?.checkInAt ??
+    item.participant?.check_in_at ??
+    item.check_in_at ??
+    null,
+  actualCheckOutTime:
+    item.participant?.actualCheckOutTime ??
+    item.participant?.actual_check_out_time ??
+    item.participant?.checkOutAt ??
+    item.participant?.check_out_at ??
+    item.check_out_at ??
+    null,
+  projectIsValid: toRecordValidity(
+    item.participant?.projectIsValid ??
+      item.participant?.project_is_valid ??
+      item.participant?.isValid ??
+      item.participant?.is_valid ??
+      item.is_valid
+  ),
+  settlementHours: toMaybeNumber(item.participant?.settlementHours ?? item.participant?.settlement_hours ?? item.settlement_hours),
+  note: item.participant?.note || item.note || null,
+  projectName: item.project?.projectName || item.project?.project_name || item.project_name || '-',
+  projectDescription:
+    item.project?.projectDescription || item.project?.project_description || item.project_description || '-',
+  creatorName: item.project?.creatorName || item.project?.creator_name || '-',
+  creatorId:
+    item.project?.creatorId ??
+    item.project?.creator_id ??
+    item.project?.createdById ??
+    item.project?.created_by_id ??
+    item.created_by_id ??
+    item.created_by ??
+    0,
+  responsibleName: item.project?.responsibleName || item.project?.responsible_name || '-',
+  responsibleId: item.project?.responsibleId ?? item.project?.responsible_id ?? item.responsible_id ?? 0,
+  projectDesignStartTime:
+    item.project?.projectDesignStartTime ||
+    item.project?.project_design_start_time ||
+    item.project?.designStartTime ||
+    item.project?.design_start_time ||
+    item.start_time ||
+    '',
+  projectDesignEndTime:
+    item.project?.projectDesignEndTime ||
+    item.project?.project_design_end_time ||
+    item.project?.designEndTime ||
+    item.project?.design_end_time ||
+    item.end_time ||
+    '',
+  projectStatus: item.projectStatus ?? item.project_status ?? item.project?.status ?? 0
 })
 
 const toAdminProject = (item: AdminProjectsResponse['items'][number]): AdminProjectItem => ({
-  projectId: item.project_id,
-  name: item.name,
-  description: item.description,
-  startTime: item.start_time,
-  endTime: item.end_time,
-  durationHours: toNumber(item.duration_hours),
+  projectId: item.projectId ?? item.project_id ?? 0,
+  projectName: item.projectName || item.project_name || item.name || '-',
+  description: item.description || item.projectDescription || '-',
+  designStartTime: item.designStartTime || item.design_start_time || item.startTime || item.start_time || '',
+  designEndTime: item.designEndTime || item.design_end_time || item.endTime || item.end_time || '',
+  designVolunteerHours: toNumber(item.designVolunteerHours ?? item.design_volunteer_hours ?? item.durationHours ?? item.duration_hours ?? 0),
   status: item.status,
-  createdById: item.created_by_id ?? item.created_by ?? 0,
-  responsibleId: item.responsible_id ?? 0,
-  createdAt: item.created_at,
-  updatedAt: item.updated_at
+  creatorId: item.creatorId ?? item.creator_id ?? item.createdById ?? item.created_by_id ?? item.created_by ?? 0,
+  creatorName: item.creatorName || item.creator_name || '-',
+  responsibleId: item.responsibleId ?? item.responsible_id ?? 0,
+  responsibleName: item.responsibleName || item.responsible_name || '-',
+  name: item.projectName || item.project_name || item.name || '-',
+  startTime: item.designStartTime || item.design_start_time || item.startTime || item.start_time || '',
+  endTime: item.designEndTime || item.design_end_time || item.endTime || item.end_time || '',
+  durationHours: toNumber(item.designVolunteerHours ?? item.design_volunteer_hours ?? item.durationHours ?? item.duration_hours ?? 0),
+  createdById: item.creatorId ?? item.creator_id ?? item.createdById ?? item.created_by_id ?? item.created_by ?? 0
 })
 
 const toAdminVolunteerListItem = (item: AdminVolunteersResponse['items'][number]): AdminVolunteerListItem => ({
@@ -603,37 +749,69 @@ const toAdminUserItem = (item: AdminUsersResponse['items'][number]): AdminUserIt
 const toAppealTargetItem = (item: AppealTargetsResponse['items'][number]): AppealTargetItem => ({
   type: item.type === 1 ? 1 : 2,
   participantId: item.participantId ?? item.participant_id ?? 0,
-  hasPendingAppeal: Boolean(item.hasPendingAppeal ?? item.has_pending_appeal),
-  project: {
-    projectId: item.project?.projectId ?? item.project?.project_id ?? 0,
-    name: item.project?.name || '-',
-    responsibleId: item.project?.responsibleId ?? item.project?.responsible_id ?? 0
-  },
-  participant: {
-    isValid: (item.participant?.isValid ?? item.participant?.is_valid ?? 0) === 1 ? 1 : 0,
-    settlementHours: toMaybeNumber(item.participant?.settlementHours ?? item.participant?.settlement_hours ?? null),
-    checkInAt: item.participant?.checkInAt ?? item.participant?.check_in_at ?? null,
-    checkOutAt: item.participant?.checkOutAt ?? item.participant?.check_out_at ?? null,
-    note: item.participant?.note || null
-  }
+  projectName: item.project?.projectName || item.project?.project_name || item.project?.name || '-',
+  projectDescription: item.project?.projectDescription || item.project?.project_description || '-',
+  creatorName: item.project?.creatorName || item.project?.creator_name || '-',
+  creatorId: item.project?.creatorId ?? item.project?.creator_id ?? 0,
+  responsibleName: item.project?.responsibleName || item.project?.responsible_name || '-',
+  responsibleId: item.project?.responsibleId ?? item.project?.responsible_id ?? 0,
+  projectDesignStartTime:
+    item.project?.projectDesignStartTime ||
+    item.project?.project_design_start_time ||
+    item.project?.designStartTime ||
+    item.project?.design_start_time ||
+    '',
+  projectDesignEndTime:
+    item.project?.projectDesignEndTime ||
+    item.project?.project_design_end_time ||
+    item.project?.designEndTime ||
+    item.project?.design_end_time ||
+    '',
+  actualCheckInTime:
+    item.participant?.actualCheckInTime ??
+    item.participant?.actual_check_in_time ??
+    item.participant?.checkInAt ??
+    item.participant?.check_in_at ??
+    null,
+  actualCheckOutTime:
+    item.participant?.actualCheckOutTime ??
+    item.participant?.actual_check_out_time ??
+    item.participant?.checkOutAt ??
+    item.participant?.check_out_at ??
+    null,
+  isValid: (item.participant?.isValid ?? item.participant?.is_valid ?? 0) === 1 ? 1 : 0,
+  settlementHours: toMaybeNumber(item.participant?.settlementHours ?? item.participant?.settlement_hours ?? null),
+  note: item.participant?.note || null
 })
 
 const toMyAppealItem = (item: AdminAppealRaw, index: number): MyAppealItem => {
   const participant = pickNested(item, 'participant')
   const project = pickNested(item, 'project')
+  const expectedReviewer = pickNested(item, 'expected_reviewer') || pickNested(item, 'expectedReviewer')
+  const actualReviewer = pickNested(item, 'actual_reviewer') || pickNested(item, 'actualReviewer')
 
   return {
     id: toIdValue(item.id) || index + 1,
+    type: (toIdValue(item.type) === 1 ? 1 : 2) as AppealTargetType,
     participantId:
       toIdValue(item.participant_id) ||
       toIdValue(item.participantId) ||
       toIdValue(participant?.id) ||
       toIdValue(participant?.participant_id),
-    projectId:
-      toIdValue(item.project_id) || toIdValue(item.projectId) || toIdValue(project?.project_id) || toIdValue(project?.id),
     projectName:
       toStringValue(item.project_name) || toStringValue(item.projectName) || toStringValue(project?.name) || '-',
-    time: toMaybeNumber(item.time as string | number | null | undefined) || 0,
+    expectedReviewerName:
+      toStringValue(item.expected_reviewer_name) ||
+      toStringValue(item.expectedReviewerName) ||
+      toStringValue(expectedReviewer?.name) ||
+      toStringValue(expectedReviewer?.nickname) ||
+      '-',
+    actualReviewerName:
+      toStringValue(item.actual_reviewer_name) ||
+      toStringValue(item.actualReviewerName) ||
+      toStringValue(actualReviewer?.name) ||
+      toStringValue(actualReviewer?.nickname) ||
+      '-',
     reason: toStringValue(item.reason) || '-',
     status: (toIdValue(item.status) as AppealStatus) || 0,
     applyTime: toStringValue(item.apply_time) || toStringValue(item.applyTime) || '',

@@ -21,11 +21,11 @@
             <input class="filter-input" v-model="queryName" type="text" placeholder="关键字" placeholder-class="placeholder" />
           </view>
           <view class="filter-item">
-            <text class="filter-label">创建者ID</text>
+            <text class="filter-label">创建者编号（可选）</text>
             <input class="filter-input" v-model="queryCreatedBy" type="number" placeholder="如 1001" placeholder-class="placeholder" />
           </view>
           <view class="filter-item">
-            <text class="filter-label">负责人ID</text>
+            <text class="filter-label">负责人编号（可选）</text>
             <input class="filter-input" v-model="queryResponsibleId" type="number" placeholder="如 2001" placeholder-class="placeholder" />
           </view>
           <view class="filter-item">
@@ -68,11 +68,12 @@
         <block v-else v-for="item in projects" :key="item.projectId">
           <view class="project-item">
             <view class="project-head">
-              <text class="name">{{ item.name }}</text>
-              <text class="status">{{ projectStatusTextMap[item.status] }}</text>
+              <text class="name">项目：{{ item.projectName }}</text>
+              <text class="status-badge" :class="getProjectCardStatus(item).className">{{ getProjectCardStatus(item).text }}</text>
             </view>
-            <view class="meta">时间：{{ formatProjectDate(item.startTime) }} - {{ formatProjectDate(item.endTime) }}</view>
-            <view class="meta">时长：{{ item.durationHours.toFixed(2) }}h ｜ 创建者：{{ item.createdById }} ｜ 负责人：{{ item.responsibleId }}</view>
+            <view class="meta">时间：{{ formatProjectDate(item.designStartTime) }} - {{ formatProjectDate(item.designEndTime) }}</view>
+            <view class="meta">时长：{{ item.designVolunteerHours.toFixed(2) }}h</view>
+            <view class="meta">创建：{{ item.creatorName || '未命名用户' }}　负责：{{ item.responsibleName || '未分配负责人' }}</view>
             <view class="meta">描述：{{ item.description || '无' }}</view>
 
             <view class="actions">
@@ -236,7 +237,7 @@ import {
   type ProjectStatus
 } from '@/utils/project'
 
-const statusOptions: Array<{ label: string; value: ProjectStatus | null }> = [
+const statusOptionsAll: Array<{ label: string; value: ProjectStatus | null }> = [
   { label: '全部', value: null },
   { label: '草稿', value: 0 },
   { label: '进行中', value: 1 },
@@ -292,8 +293,11 @@ const selectedResponsibleLabel = computed(() => {
   return adminUserOptions.value[responsibleSelectIndex.value]?.label || adminUserOptions.value[0].label
 })
 
-const selectedProjectName = computed(() => selectedProject.value?.name || '-')
+const selectedProjectName = computed(() => selectedProject.value?.projectName || '-')
 const isSuperAdmin = computed(() => currentRole.value === 3)
+const statusOptions = computed(() =>
+  isSuperAdmin.value ? statusOptionsAll : statusOptionsAll.filter((item) => item.value !== 0)
+)
 const currentUserId = computed(() => {
   const raw = uni.getStorageSync(STORAGE_KEYS.USER_CACHE)
   if (!raw) {
@@ -328,6 +332,34 @@ const toMaybeNumber = (value: string) => {
 
 const canOperateProject = (item: AdminProjectItem) => {
   return isSuperAdmin.value || item.responsibleId === currentUserId.value
+}
+
+const getProjectCardStatus = (item: AdminProjectItem) => {
+  if (!isSuperAdmin.value && !canOperateProject(item)) {
+    return {
+      text: '不负责',
+      className: 'status-neutral'
+    }
+  }
+
+  if (item.status === 1) {
+    return {
+      text: '进行中',
+      className: 'status-running'
+    }
+  }
+
+  if (item.status === 0) {
+    return {
+      text: '草稿',
+      className: 'status-neutral'
+    }
+  }
+
+  return {
+    text: '已结束',
+    className: 'status-neutral'
+  }
 }
 
 const canExportProject = (item: AdminProjectItem) => {
@@ -385,7 +417,7 @@ const onResponsibleSelectChange = (event: { detail: { value: string } }) => {
 }
 
 const buildQuery = () => ({
-  status: statusOptions[statusIndex.value].value ?? undefined,
+  status: statusOptions.value[statusIndex.value]?.value ?? undefined,
   name: queryName.value.trim() || undefined,
   createdById: toMaybeNumber(queryCreatedBy.value),
   responsibleId: toMaybeNumber(queryResponsibleId.value),
@@ -431,9 +463,11 @@ const loadProjects = async (reset = false) => {
 
   try {
     const data = await fetchAdminProjects(buildQuery())
-    const pageItems = data.items
+    const pageItems = isSuperAdmin.value ? data.items : data.items.filter((item) => item.status !== 0)
     projects.value = reset ? pageItems : appendUniqueProjects(projects.value, pageItems)
-    hasMore.value = projects.value.length < data.total && data.items.length === PAGE_SIZE
+    hasMore.value = isSuperAdmin.value
+      ? projects.value.length < data.total && data.items.length === PAGE_SIZE
+      : data.items.length === PAGE_SIZE
     if (data.items.length > 0) {
       page.value += 1
     }
@@ -816,6 +850,7 @@ onPullDownRefresh(async () => {
 
 .project-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16rpx;
 }
@@ -826,12 +861,21 @@ onPullDownRefresh(async () => {
   color: #1f2937;
 }
 
-.status {
+.status-badge {
   font-size: 22rpx;
   color: #334155;
-  background: #e2e8f0;
   padding: 4rpx 12rpx;
   border-radius: 999rpx;
+}
+
+.status-running {
+  color: #065f46;
+  background: #d1fae5;
+}
+
+.status-neutral {
+  color: #475569;
+  background: #e2e8f0;
 }
 
 .meta {

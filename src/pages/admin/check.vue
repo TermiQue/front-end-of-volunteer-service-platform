@@ -9,7 +9,7 @@
             <input class="filter-input" v-model="queryName" type="text" placeholder="关键字" placeholder-class="placeholder" />
           </view>
           <view class="filter-item">
-            <text class="filter-label">创建者ID</text>
+            <text class="filter-label">创建者编号（可选）</text>
             <input class="filter-input" v-model="queryCreatedBy" type="number" placeholder="如 1001" placeholder-class="placeholder" />
           </view>
           <view class="filter-item">
@@ -52,11 +52,11 @@
         <block v-else v-for="item in projects" :key="item.projectId">
           <view class="project-item">
             <view class="project-head">
-              <text class="name">{{ item.name }}</text>
+              <text class="name">{{ item.projectName }}</text>
               <text class="status">进行中</text>
             </view>
-            <view class="meta">时间：{{ formatProjectDate(item.startTime) }} - {{ formatProjectDate(item.endTime) }}</view>
-            <view class="meta">时长：{{ item.durationHours.toFixed(2) }}h ｜ 创建者：{{ item.createdById }} ｜ 负责人：{{ item.responsibleId }}</view>
+            <view class="meta">时间：{{ formatProjectDate(item.designStartTime) }} - {{ formatProjectDate(item.designEndTime) }}</view>
+            <view class="meta">时长：{{ item.designVolunteerHours.toFixed(2) }}h ｜ 创建者：{{ item.creatorName || '未命名用户' }} ｜ 负责人：{{ item.responsibleName || '未分配负责人' }}</view>
             <view class="meta">描述：{{ item.description || '无' }}</view>
 
             <view class="actions">
@@ -147,7 +147,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 const qrColors = ['#2b7a78', '#5f60e7', '#e26464', '#ea580c', '#0f766e', '#7c3aed']
 const qrColorIndex = ref(0)
 
-const activeProjectName = computed(() => activeProject.value?.name || '-')
+const activeProjectName = computed(() => activeProject.value?.projectName || '-')
 const activeModeLabel = computed(() => (activeMode.value === 'checkin' ? '签到二维码' : '签退二维码'))
 const currentQrColorHex = computed(() => qrColors[qrColorIndex.value % qrColors.length])
 
