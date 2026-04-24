@@ -260,7 +260,11 @@ const loadVolunteers = async (reset = false) => {
   }
 }
 
-const setSearchMode = (mode: 'name' | 'studentId') => {
+const setSearchMode = (mode: string) => {
+  if (mode !== 'name' && mode !== 'studentId') {
+    return
+  }
+
   if (searchMode.value === mode) {
     return
   }

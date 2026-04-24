@@ -168,8 +168,13 @@ export type AdminAppealItem = {
   applicantId: number
   applicantName: string
   applicantStudentId: string
+  applicantNickname: string
+  applicantPhone: string
+  actualCheckInTime: string | number | null
+  actualCheckOutTime: string | number | null
   expectedReviewerId: number
   expectedReviewerName: string
+  actualReviewerName: string
   projectId: number
   projectName: string
   time: number
@@ -180,10 +185,10 @@ export type AdminAppealItem = {
 }
 
 export type AdminAppealQuery = {
-  status?: AppealStatus
-  participantId?: number
-  applicantId?: number
-  expectedReviewerId?: number
+  status?: AppealStatus | 'all'
+  projectName?: string
+  applicantName?: string
+  applicantStudentId?: string
   page?: number
   pageSize?: number
 }
@@ -572,6 +577,14 @@ const toRecordValidity = (value: unknown): RecordValidity => {
   return toIdValue(value) === 1 ? 1 : 0
 }
 
+const toStringOrNumberValue = (value: unknown): string | number | null => {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return value
+  }
+
+  return null
+}
+
 const pickNested = (source: AdminAppealRaw, key: string) => {
   const value = source[key]
   return value && typeof value === 'object' ? (value as AdminAppealRaw) : null
@@ -711,6 +724,36 @@ const toAdminAppealItem = (item: AdminAppealRaw, index: number): AdminAppealItem
       toStringValue(item.applicantStudentId) ||
       toStringValue(applicant?.student_id) ||
       '-',
+    applicantNickname:
+      toStringValue(item.applicant_nickname) ||
+      toStringValue(item.applicantNickname) ||
+      toStringValue(applicant?.nickname) ||
+      '-',
+    applicantPhone:
+      toStringValue(item.applicant_phone) ||
+      toStringValue(item.applicantPhone) ||
+      toStringValue(applicant?.phone) ||
+      '-',
+    actualCheckInTime:
+      toStringOrNumberValue(participant?.actualCheckInTime) ??
+      toStringOrNumberValue(participant?.actual_check_in_time) ??
+      toStringOrNumberValue(participant?.checkInAt) ??
+      toStringOrNumberValue(participant?.check_in_at) ??
+      toStringOrNumberValue(item.check_in_at) ??
+      toStringOrNumberValue(item.actual_check_in_time) ??
+      toStringOrNumberValue(item.actualCheckInTime) ??
+      toStringOrNumberValue(item.checkInAt) ??
+      null,
+    actualCheckOutTime:
+      toStringOrNumberValue(participant?.actualCheckOutTime) ??
+      toStringOrNumberValue(participant?.actual_check_out_time) ??
+      toStringOrNumberValue(participant?.checkOutAt) ??
+      toStringOrNumberValue(participant?.check_out_at) ??
+      toStringOrNumberValue(item.check_out_at) ??
+      toStringOrNumberValue(item.actual_check_out_time) ??
+      toStringOrNumberValue(item.actualCheckOutTime) ??
+      toStringOrNumberValue(item.checkOutAt) ??
+      null,
     expectedReviewerId:
       toIdValue(item.expected_reviewer_id) ||
       toIdValue(item.expectedReviewerId) ||
@@ -722,10 +765,19 @@ const toAdminAppealItem = (item: AdminAppealRaw, index: number): AdminAppealItem
       toStringValue(expectedReviewer?.name) ||
       toStringValue(expectedReviewer?.nickname) ||
       '-',
+    actualReviewerName:
+      toStringValue(item.actual_reviewer_name) ||
+      toStringValue(item.actualReviewerName) ||
+      '-',
     projectId:
       toIdValue(item.project_id) || toIdValue(item.projectId) || toIdValue(project?.project_id) || toIdValue(project?.id),
     projectName:
-      toStringValue(item.project_name) || toStringValue(item.projectName) || toStringValue(project?.name) || '-',
+      toStringValue(item.project_name) ||
+      toStringValue(item.projectName) ||
+      toStringValue(project?.project_name) ||
+      toStringValue(project?.projectName) ||
+      toStringValue(project?.name) ||
+      '-',
     time: toMaybeNumber(item.time as string | number | null | undefined) || 0,
     reason: toStringValue(item.reason) || '-',
     status: (toIdValue(item.status) as AppealStatus) || 0,

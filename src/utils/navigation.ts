@@ -4,6 +4,28 @@ const reLaunchTo = (url: string) => {
   uni.reLaunch({ url })
 }
 
+const TAB_PAGE_PATHS = new Set([
+  '/pages/index/index',
+  '/pages/volunteer/volunteer',
+  '/pages/juvenile/juvenile',
+  '/pages/message/message',
+  '/pages/mine/mine',
+  '/pages/admin/admin'
+])
+
+const normalizeInAppPath = (url: string) => {
+  const trimmed = url.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return ''
+  }
+
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
 export const openHome = () => {
   reLaunchTo('/pages/index/index')
 }
@@ -69,4 +91,31 @@ export const openProfileForm = (redirectPath = '') => {
 
 export const openLoginEntry = () => {
   openMine()
+}
+
+export const openInAppLink = (url: string) => {
+  const normalized = normalizeInAppPath(url)
+  if (!normalized) {
+    uni.showToast({
+      title: '暂无可跳转详情',
+      icon: 'none'
+    })
+    return
+  }
+
+  const pathOnly = normalized.split('?')[0] || normalized
+  if (TAB_PAGE_PATHS.has(pathOnly)) {
+    reLaunchTo(normalized)
+    return
+  }
+
+  uni.navigateTo({
+    url: normalized,
+    fail: () => {
+      uni.showToast({
+        title: '详情跳转失败',
+        icon: 'none'
+      })
+    }
+  })
 }

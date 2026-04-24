@@ -166,6 +166,12 @@ Authorization: Bearer <accessToken>
 | user.avatarUrl | string | 头像访问地址；为空字符串表示未设置头像 |
 | user.role | number | 角色值，见“用户角色”枚举 |
 
+通知说明:
+
+- 首次注册用户（即首次微信登录并创建账号）会自动收到一条 `欢迎-志愿者` 类型通知。
+- 该通知模板读取自对象存储 `public/notifications.json`。
+- 欢迎通知会在登录成功响应返回前写入通知表，因此前端在 `POST /api/login/wechat` 成功后应立即刷新一次通知列表或未读数。
+
 ---
 
 ## 4.2 获取当前用户
@@ -474,6 +480,153 @@ Authorization: Bearer <accessToken>
 
 ---
 
+## 5.7 查询我的通知
+
+- Method: `GET`
+- Path: `/api/auth/notifications`
+- 鉴权: 是
+
+Query 参数:
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| page | number | 否 | 页码，默认 `1` |
+| pageSize | number | 否 | 每页条数，默认 `20`，最大 `100` |
+
+成功响应示例:
+
+```json
+{
+  "code": 0,
+  "message": "查询成功",
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "type": "欢迎-志愿者",
+        "title": "恭喜开启志愿之旅",
+        "content": "欢迎来到“归途·桥链”志愿服务平台",
+        "sender_id": null,
+        "receiver_id": 101,
+        "extra_data": {},
+        "redirect_url": "",
+        "is_read": 0,
+        "is_deleted": 0,
+        "created_at": "2026-04-24T10:00:00.000Z",
+        "read_at": null
+      }
+    ],
+    "total": 1,
+    "unreadCount": 1,
+    "page": 1,
+    "pageSize": 20
+  }
+}
+```
+
+`data` 字段说明:
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| items | array | 通知列表 |
+| items[].id | number | 通知 ID |
+| items[].type | string | 通知类型 |
+| items[].title | string | 通知标题 |
+| items[].content | string | 通知内容 |
+| items[].sender_id | number/null | 发送者用户 ID，`null` 表示系统通知 |
+| items[].receiver_id | number | 接收者用户 ID |
+| items[].extra_data | object | 扩展数据 |
+| items[].redirect_url | string/null | 点击通知后的跳转路径 |
+| items[].is_read | number | 是否已读：`0` 未读，`1` 已读 |
+| items[].is_deleted | number | 是否软删除：列表接口固定返回 `0` |
+| items[].created_at | string | 创建时间 |
+| items[].read_at | string/null | 已读时间 |
+| total | number | 通知总数（不含已软删除） |
+| unreadCount | number | 未读数（不含已软删除） |
+| page | number | 当前页码 |
+| pageSize | number | 每页条数 |
+
+前端刷新建议:
+
+- `POST /api/login/wechat` 成功后立即刷新一次通知列表或未读数；首次注册用户此时可拿到欢迎通知。
+- 用户进入“通知/消息”页时刷新。
+- 调用“标记已读”或“删除”成功后，可直接更新本地列表；如需确保未读数绝对准确，可再调用一次本接口。
+
+---
+
+## 5.8 标记通知已读
+
+- Method: `POST`
+- Path: `/api/auth/notifications/:notificationId/read`
+- 鉴权: 是
+
+Path 参数:
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| notificationId | number | 通知 ID |
+
+成功响应示例:
+
+```json
+{
+  "code": 0,
+  "message": "已标记为已读",
+  "data": {
+    "notification": {
+      "id": 1,
+      "type": "欢迎-志愿者",
+      "title": "恭喜开启志愿之旅",
+      "content": "欢迎来到“归途·桥链”志愿服务平台",
+      "sender_id": null,
+      "receiver_id": 101,
+      "extra_data": {},
+      "redirect_url": "",
+      "is_read": 1,
+      "is_deleted": 0,
+      "created_at": "2026-04-24T10:00:00.000Z",
+      "read_at": "2026-04-24T10:05:00.000Z"
+    }
+  }
+}
+```
+
+说明:
+
+- 仅允许操作当前登录用户自己的通知。
+- 已软删除的通知不可标记已读。
+
+---
+
+## 5.9 软删除通知
+
+- Method: `DELETE`
+- Path: `/api/auth/notifications/:notificationId`
+- 鉴权: 是
+
+Path 参数:
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| notificationId | number | 通知 ID |
+
+成功响应示例:
+
+```json
+{
+  "code": 0,
+  "message": "删除成功",
+  "data": null
+}
+```
+
+说明:
+
+- 仅执行软删除，即将 `is_deleted` 置为 `1`，不会物理删除记录。
+- 已软删除的通知不会再出现在“查询我的通知”列表中，也不会计入未读数。
+
+---
+
 ## 6. 志愿者端项目接口
 
 ## 6.1 查询我参与的项目
@@ -724,6 +877,7 @@ Query 参数:
 返回字段重点:
 
 - 仅返回“当前可申请”的条目。
+- 仅返回近 7 天内的可申请记录。
 - 已自动排除以下不可申请项：
   - 同一参与记录已有待审核申请。
   - 同一项目下申请人已有审核中申请。
@@ -1545,7 +1699,9 @@ Query 参数:
 | --- | --- | --- |
 | status | string/number | `all` 或不传=全部；`0` 待审核，`1` 通过，`2` 拒绝 |
 | participantId | number | 参与记录 ID |
-| applicantId | number | 申请人 ID |
+| projectName | string | 项目名模糊匹配 |
+| applicantName | string | 申请人姓名模糊匹配 |
+| applicantStudentId | string | 申请人学号模糊匹配 |
 | expectedReviewerId | number | 期望审核员 |
 | page/pageSize | number | 分页 |
 
@@ -1567,6 +1723,10 @@ Query 参数:
         "type": 2,
         "participant_id": 9001,
         "applicant_id": 101,
+        "applicant_name": "张三",
+        "applicant_student_id": "20230001",
+        "applicant_nickname": "微信用户101",
+        "applicant_phone": "13800000000",
         "expected_reviewer_id": 2002,
         "time": "2.5",
         "reason": "当日提前到场，申请修正时长",
@@ -1576,6 +1736,8 @@ Query 参数:
         "review_time": null,
         "review_comment": null,
         "project_id": 3001,
+        "check_in_at": "2026-05-01T09:03:00.000Z",
+        "check_out_at": "2026-05-01T11:31:00.000Z",
         "project_name": "社区义诊",
         "expected_reviewer_name": "管理员B",
         "actual_reviewer_name": null
@@ -1597,6 +1759,10 @@ Query 参数:
 | items[].type | number | 申请类型：1 无效记录申诉，2 时长变更 |
 | items[].participant_id | number | 参与记录 ID |
 | items[].applicant_id | number | 申请人用户 ID |
+| items[].applicant_name | string/null | 申请人姓名 |
+| items[].applicant_student_id | string/null | 申请人学号 |
+| items[].applicant_nickname | string/null | 申请人昵称 |
+| items[].applicant_phone | string/null | 申请人联系电话 |
 | items[].expected_reviewer_id | number | 期望审核员用户 ID |
 | items[].time | string/number | 申请时长 |
 | items[].reason | string | 申请理由 |
@@ -1606,6 +1772,8 @@ Query 参数:
 | items[].review_time | string/null | 审核时间 |
 | items[].review_comment | string/null | 审核意见 |
 | items[].project_id | number | 所属项目 ID |
+| items[].check_in_at | string/null | 实际参与签到时间 |
+| items[].check_out_at | string/null | 实际参与签退时间 |
 | items[].project_name | string | 项目名 |
 | items[].expected_reviewer_name | string/null | 期望审核员姓名 |
 | items[].actual_reviewer_name | string/null | 实际审核员姓名 |

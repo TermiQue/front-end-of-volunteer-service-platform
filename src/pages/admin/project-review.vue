@@ -18,7 +18,15 @@
 
           <view class="filter-bar">
             <view class="filter-bar-item">
-              <FilterInput v-model="applicantId" label="申请人ID" placeholder="如 1001" />
+              <FilterInput v-model="projectName" label="项目名" placeholder="请输入项目名关键词" />
+            </view>
+
+            <view class="filter-bar-item">
+              <FilterInput v-model="applicantName" label="申请人姓名" placeholder="请输入姓名关键词" />
+            </view>
+
+            <view class="filter-bar-item">
+              <FilterInput v-model="applicantStudentId" label="申请人学号" placeholder="请输入学号关键词" />
             </view>
 
             <view class="scope-tip">{{ reviewScopeTips }}</view>
@@ -75,7 +83,9 @@ const page = ref(1)
 const hasMore = ref(true)
 
 const statusFilter = ref<AppealStatus | null>(0)
-const applicantId = ref('')
+const projectName = ref('')
+const applicantName = ref('')
+const applicantStudentId = ref('')
 const STATUS_FILTER_OPTIONS = [
   { label: '全部', value: 'all' },
   { label: '待审核', value: '0' },
@@ -93,18 +103,15 @@ const activeAppeal = ref<AdminAppealItem | null>(null)
 let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
 let autoQueryReady = false
 
-const reviewScopeTips = computed(() => '当前列表默认返回你可审核的请求')
+const reviewScopeTips = computed(() => '当前列表默认返回你可审核的申请；超级管理员可查看全部。')
 const statusFilterValue = computed(() => {
   return statusFilter.value === null ? 'all' : String(statusFilter.value)
 })
 
-const toMaybeNumber = (value: string) => {
-  if (!value.trim()) {
-    return undefined
-  }
-
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : undefined
+const formatParticipationTime = (item: AdminAppealItem) => {
+  const checkIn = item.actualCheckInTime ? formatProjectDate(String(item.actualCheckInTime)) : '-'
+  const checkOut = item.actualCheckOutTime ? formatProjectDate(String(item.actualCheckOutTime)) : '-'
+  return `${checkIn} / ${checkOut}`
 }
 
 const buildAppealInfoCard = (item: AdminAppealItem) => {
@@ -112,7 +119,7 @@ const buildAppealInfoCard = (item: AdminAppealItem) => {
 
   return {
     title: {
-      text: `${item.applicantName} (${item.applicantStudentId || '-'})`
+      text: `${item.applicantName}（${item.applicantStudentId || '-'}）`
     },
     tag: {
       text: appealStatusTextMap[item.status],
@@ -124,9 +131,10 @@ const buildAppealInfoCard = (item: AdminAppealItem) => {
       ]
     },
     rows: [
-      [{ text: `项目：${item.projectName || '-'}` }],
-      [{ text: `期望时长：${item.time.toFixed(1)}h` }, { text: `期望审核员：${item.expectedReviewerName || '-'}` }],
+      [{ text: `项目：${item.projectName || '-'}` }, { text: `手机号：${item.applicantPhone || '-'}` }],
+      [{ text: `参与时间：${formatParticipationTime(item)}` }],
       [{ text: `申请时间：${formatProjectDate(item.applyTime)}` }],
+      [{ text: `申请时长：${item.time.toFixed(1)}h` }],
       [{ text: `理由：${item.reason || '-'}` }],
       [{ text: `审核意见：${item.reviewComment && item.reviewComment !== '-' ? item.reviewComment : '-'}` }]
     ],
@@ -197,7 +205,9 @@ const appendUniqueAppeals = (existing: AdminAppealItem[], incoming: AdminAppealI
 
 const buildQuery = () => ({
   status: statusFilter.value ?? undefined,
-  applicantId: toMaybeNumber(applicantId.value),
+  projectName: projectName.value.trim() || undefined,
+  applicantName: applicantName.value.trim() || undefined,
+  applicantStudentId: applicantStudentId.value.trim() || undefined,
   page: page.value,
   pageSize: PAGE_SIZE
 })
@@ -296,7 +306,15 @@ useAuthGuard({
   }
 })
 
-watch(applicantId, () => {
+watch(projectName, () => {
+  triggerAutoQuery(false)
+})
+
+watch(applicantName, () => {
+  triggerAutoQuery(false)
+})
+
+watch(applicantStudentId, () => {
   triggerAutoQuery(false)
 })
 
