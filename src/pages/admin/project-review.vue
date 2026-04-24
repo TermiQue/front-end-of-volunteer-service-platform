@@ -2,64 +2,29 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="search-bar">
-        <text class="search-label">状态</text>
-        <view class="search-segment">
-          <view class="search-segment-item" :class="statusFilter === null ? 'active' : ''" @tap="setStatusFilter(null)">
-            全部
-          </view>
-          <view class="search-segment-item" :class="statusFilter === 0 ? 'active' : ''" @tap="setStatusFilter(0)">
-            待审核
-          </view>
-          <view class="search-segment-item" :class="statusFilter === 1 ? 'active' : ''" @tap="setStatusFilter(1)">
-            已通过
-          </view>
-          <view class="search-segment-item" :class="statusFilter === 2 ? 'active' : ''" @tap="setStatusFilter(2)">
-            已拒绝
-          </view>
-        </view>
-      </view>
+      <ProjectRecordSection
+        title="申请审批"
+        :items="appealRecordItems"
+        :loading="loading && !appeals.length"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :error-message="errorMessage"
+        loading-text="正在加载申请列表..."
+        empty-text="暂无申请记录"
+        no-more-text="没有更多了"
+      >
+        <template #filters>
+          <SegmentFilter :model-value="statusFilterValue" :options="statusFilterOptions" @change="onStatusFilterChange" />
 
-      <view class="search-bar">
-        <text class="scope-tip">{{ reviewScopeTips }}</text>
-      </view>
-
-      <view class="search-bar">
-        <text class="search-label">申请人ID</text>
-        <input class="search-input" v-model="applicantId" type="number" placeholder="可选" placeholder-class="search-placeholder" />
-      </view>
-
-      <view class="table-wrapper">
-        <view v-if="loading && !appeals.length" class="state-row">正在加载申请列表...</view>
-        <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
-        <view v-else-if="!appeals.length" class="state-row">暂无申请记录</view>
-
-        <view v-else class="card-list">
-          <view v-for="item in appeals" :key="item.id" class="appeal-card">
-            <view class="card-head">
-              <text class="card-title">{{ item.applicantName }} ({{ item.applicantStudentId || '-' }})</text>
-              <text class="card-status" :class="statusClass(item.status)">{{ appealStatusTextMap[item.status] }}</text>
+          <view class="filter-bar">
+            <view class="filter-bar-item">
+              <FilterInput v-model="applicantId" label="申请人ID" placeholder="如 1001" />
             </view>
-            <view class="meta">项目：{{ item.projectName || '-' }}</view>
-            <view class="meta">期望时长：{{ item.time.toFixed(1) }}h</view>
-            <view class="meta">期望审核员：{{ item.expectedReviewerName || '-' }}</view>
-            <view class="meta">申请时间：{{ formatProjectDate(item.applyTime) }}</view>
-            <view class="meta reason">理由：{{ item.reason }}</view>
-            <view v-if="item.reviewComment && item.reviewComment !== '-'" class="meta">审核意见：{{ item.reviewComment }}</view>
 
-            <view v-if="item.status === 0" class="actions">
-              <button class="item-btn item-btn-approve" :disabled="actionLock" @tap="openReviewModal(item, 1)">通过</button>
-              <button class="item-btn item-btn-reject" :disabled="actionLock" @tap="openReviewModal(item, 2)">拒绝</button>
-            </view>
+            <view class="scope-tip">{{ reviewScopeTips }}</view>
           </view>
-        </view>
-
-        <view v-if="appeals.length" class="load-more-row">
-          <text v-if="loadingMore">加载中...</text>
-          <text v-else-if="!hasMore">没有更多了</text>
-          <text v-else>上拉加载更多</text>
-        </view>
-      </view>
+        </template>
+      </ProjectRecordSection>
     </view>
 
     <view v-if="showReviewModal" class="modal-mask" @tap="closeReviewModal">
@@ -81,10 +46,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
+import FilterInput from '@/components/FilterInput.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
+import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
@@ -108,15 +76,27 @@ const hasMore = ref(true)
 
 const statusFilter = ref<AppealStatus | null>(0)
 const applicantId = ref('')
+const STATUS_FILTER_OPTIONS = [
+  { label: '全部', value: 'all' },
+  { label: '待审核', value: '0' },
+  { label: '已通过', value: '1' },
+  { label: '已拒绝', value: '2' }
+] as const
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
+const statusFilterOptions = [...STATUS_FILTER_OPTIONS]
 
 const showReviewModal = ref(false)
 const reviewComment = ref('')
 const reviewMode = ref<1 | 2>(1)
 const activeAppeal = ref<AdminAppealItem | null>(null)
+let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
+let autoQueryReady = false
 
 const reviewScopeTips = computed(() => '当前列表默认返回你可审核的请求')
+const statusFilterValue = computed(() => {
+  return statusFilter.value === null ? 'all' : String(statusFilter.value)
+})
 
 const toMaybeNumber = (value: string) => {
   if (!value.trim()) {
@@ -127,16 +107,79 @@ const toMaybeNumber = (value: string) => {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-const statusClass = (status: AppealStatus) => {
-  if (status === 1) {
-    return 'approved'
+const buildAppealInfoCard = (item: AdminAppealItem) => {
+  const statusWhen = item.status === 1 ? 'approved' : item.status === 2 ? 'rejected' : 'pending'
+
+  return {
+    title: {
+      text: `${item.applicantName} (${item.applicantStudentId || '-'})`
+    },
+    tag: {
+      text: appealStatusTextMap[item.status],
+      when: statusWhen,
+      matchers: [
+        { when: 'pending', type: 1 as const },
+        { when: 'approved', type: 2 as const },
+        { when: 'rejected', type: 3 as const }
+      ]
+    },
+    rows: [
+      [{ text: `项目：${item.projectName || '-'}` }],
+      [{ text: `期望时长：${item.time.toFixed(1)}h` }, { text: `期望审核员：${item.expectedReviewerName || '-'}` }],
+      [{ text: `申请时间：${formatProjectDate(item.applyTime)}` }],
+      [{ text: `理由：${item.reason || '-'}` }],
+      [{ text: `审核意见：${item.reviewComment && item.reviewComment !== '-' ? item.reviewComment : '-'}` }]
+    ],
+    buttonRows:
+      item.status === 0
+        ? [[
+            {
+              text: '通过',
+              type: 2 as const,
+              disabled: actionLock.value,
+              onTap: async () => {
+                openReviewModal(item, 1)
+              }
+            },
+            {
+              text: '拒绝',
+              type: 4 as const,
+              disabled: actionLock.value,
+              onTap: async () => {
+                openReviewModal(item, 2)
+              }
+            }
+          ]]
+        : undefined
+  }
+}
+
+const appealRecordItems = computed<ProjectRecordItem[]>(() => {
+  return appeals.value.map((item) => ({
+    id: item.id,
+    card: buildAppealInfoCard(item)
+  }))
+})
+
+const triggerAutoQuery = (immediate = false) => {
+  if (!autoQueryReady) {
+    return
   }
 
-  if (status === 2) {
-    return 'rejected'
+  if (autoQueryTimer) {
+    clearTimeout(autoQueryTimer)
+    autoQueryTimer = null
   }
 
-  return 'pending'
+  if (immediate) {
+    void loadAppeals(true)
+    return
+  }
+
+  autoQueryTimer = setTimeout(() => {
+    autoQueryTimer = null
+    void loadAppeals(true)
+  }, 260)
 }
 
 const appendUniqueAppeals = (existing: AdminAppealItem[], incoming: AdminAppealItem[]) => {
@@ -194,9 +237,9 @@ const loadAppeals = async (reset = false) => {
   }
 }
 
-const setStatusFilter = async (status: AppealStatus | null) => {
-  statusFilter.value = status
-  await loadAppeals(true)
+const onStatusFilterChange = (value: string) => {
+  statusFilter.value = value === 'all' ? null : (Number(value) as AppealStatus)
+  triggerAutoQuery(true)
 }
 
 const openReviewModal = (item: AdminAppealItem, mode: 1 | 2) => {
@@ -249,7 +292,12 @@ useAuthGuard({
   },
   onAuthorized: async () => {
     await loadAppeals(true)
+    autoQueryReady = true
   }
+})
+
+watch(applicantId, () => {
+  triggerAutoQuery(false)
 })
 
 onReachBottom(async () => {
@@ -277,190 +325,28 @@ onPullDownRefresh(async () => {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding: 40rpx 30rpx calc(200rpx + env(safe-area-inset-bottom));
-}
-
-.search-bar {
-  margin-bottom: 20rpx;
-  padding: 22rpx 24rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-}
-
-.search-label {
-  flex-shrink: 0;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #2b7a78;
-}
-
-.scope-tip {
-  font-size: 24rpx;
-  color: #64748b;
-}
-
-.search-segment {
-  display: flex;
-  gap: 10rpx;
-  flex-wrap: wrap;
-}
-
-.search-segment-item {
-  min-width: 110rpx;
-  height: 56rpx;
-  padding: 0 16rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid #d7dde3;
-  background: rgba(248, 250, 252, 0.96);
-  color: #4b5563;
-  font-size: 24rpx;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-segment-item.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.search-input {
-  flex: 1;
-  height: 72rpx;
-  padding: 0 20rpx;
-  border-radius: 16rpx;
-  background: rgba(248, 250, 252, 0.96);
-  font-size: 26rpx;
-  color: #111827;
+  padding: 24rpx 0 calc(200rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
-.search-placeholder {
-  color: #9ca3af;
-}
-
-.table-wrapper {
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-}
-
-.state-row {
-  text-align: center;
-  padding: 24rpx;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.state-row.error {
-  color: #b42318;
-}
-
-.card-list {
-  padding: 18rpx;
-}
-
-.appeal-card {
-  border-radius: 16rpx;
-  background: #f8fafc;
-  border: 1rpx solid #e5e7eb;
-  padding: 18rpx;
-  margin-bottom: 14rpx;
-}
-
-.appeal-card:last-child {
-  margin-bottom: 0;
-}
-
-.card-head {
+.filter-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: 12rpx;
-  margin-bottom: 10rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.card-title {
-  color: #111827;
-  font-size: 28rpx;
-  font-weight: 700;
+.filter-bar-item {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
-.card-status {
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
+.scope-tip {
+  padding: 0 8rpx;
   font-size: 22rpx;
-  font-weight: 600;
-}
-
-.card-status.pending {
-  color: #9a6700;
-  background: #fff7d6;
-}
-
-.card-status.approved {
-  color: #047857;
-  background: #dcfce7;
-}
-
-.card-status.rejected {
-  color: #b42318;
-  background: #fee2e2;
-}
-
-.meta {
-  font-size: 24rpx;
-  color: #4b5563;
-  margin-top: 6rpx;
-}
-
-.meta.reason {
-  line-height: 1.6;
-}
-
-.actions {
-  margin-top: 16rpx;
-  display: flex;
-  gap: 12rpx;
-}
-
-.item-btn {
-  margin: 0;
-  flex: 1;
-  height: 70rpx;
-  border: none;
-  border-radius: 12rpx;
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.item-btn::after {
-  border: none;
-}
-
-.item-btn-approve {
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-}
-
-.item-btn-reject {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.load-more-row {
-  padding: 18rpx 0 12rpx;
-  text-align: center;
-  color: #6b7280;
-  font-size: 22rpx;
+  color: #64748b;
 }
 
 .modal-mask {

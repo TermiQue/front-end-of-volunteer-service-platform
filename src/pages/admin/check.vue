@@ -2,64 +2,65 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="filter-panel">
-        <view class="filter-grid">
-          <view class="filter-item">
-            <text class="filter-label">项目名称</text>
-            <input class="filter-input" v-model="queryName" type="text" placeholder="关键字" placeholder-class="placeholder" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">创建者编号（可选）</text>
-            <input class="filter-input" v-model="queryCreatedBy" type="number" placeholder="如 1001" placeholder-class="placeholder" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">时长最小值</text>
-            <PopupDurationPicker v-model="queryDurationMin" title="选择时长最小值" placeholder="小时" :max-hours="24" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">时长最大值</text>
-            <PopupDurationPicker v-model="queryDurationMax" title="选择时长最大值" placeholder="小时" :max-hours="24" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">开始时间下界</text>
-            <PopupDateCalendar v-model="queryStartFrom" title="选择开始时间下界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">开始时间上界</text>
-            <PopupDateCalendar v-model="queryStartTo" title="选择开始时间上界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">结束时间下界</text>
-            <PopupDateCalendar v-model="queryEndFrom" title="选择结束时间下界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">结束时间上界</text>
-            <PopupDateCalendar v-model="queryEndTo" title="选择结束时间上界" placeholder="请选择" />
-          </view>
-        </view>
+      <ProjectRecordSection
+        title="签到签退项目"
+        :items="projectRecordItems"
+        :loading="loading && !projects.length"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :error-message="errorMessage"
+        loading-text="正在加载进行中项目..."
+        empty-text="暂无符合条件的进行中项目"
+        no-more-text="没有更多了"
+      >
+        <template #filters>
+          <view class="filter-bar">
+            <view class="filter-bar-item">
+              <FilterInput v-model="queryName" label="项目名称" placeholder="请输入项目名称关键字" />
+            </view>
 
-        <view class="filter-actions">
-          <button class="btn btn-secondary" @tap="resetQuery">重置</button>
-          <button class="btn btn-primary" @tap="loadProjects(true)">查询</button>
-        </view>
-      </view>
+            <view class="filter-bar-item">
+              <FilterInput v-model="queryCreatedBy" label="创建者编号" placeholder="如 1001" />
+            </view>
 
-      <view class="list-panel">
-        <view v-if="loading && !projects.length" class="state-row">正在加载进行中项目...</view>
-        <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
-        <view v-else-if="!projects.length" class="state-row">暂无符合条件的进行中项目</view>
+            <view class="filter-bar-item">
+              <DurationRangeFilter
+                :min="queryDurationMin"
+                :max="queryDurationMax"
+                label="时长范围"
+                placeholder="请选择时长范围"
+                @open="openDurationRangePopup"
+              />
+            </view>
 
-        <block v-else v-for="item in projects" :key="item.projectId">
-          <InfoLineCard :card="buildCheckInfoCard(item)" />
-        </block>
-
-        <view v-if="projects.length" class="load-more-row">
-          <text v-if="loadingMore">加载中...</text>
-          <text v-else-if="!hasMore">没有更多了</text>
-          <text v-else>上拉加载更多</text>
-        </view>
-      </view>
+            <view class="filter-bar-item">
+              <DateRangeFilter
+                :start="queryStartFrom"
+                :end="queryEndTo"
+                label="时间范围"
+                placeholder="请选择时间范围"
+                @open="openDateRangePopup"
+              />
+            </view>
+          </view>
+        </template>
+      </ProjectRecordSection>
     </view>
+
+    <DateRangePopup
+      v-model:visible="dateRangePopupVisible"
+      v-model:start="queryStartFrom"
+      v-model:end="queryEndTo"
+      label="时间范围"
+    />
+
+    <DurationRangePopup
+      v-model:visible="durationRangePopupVisible"
+      v-model:min="queryDurationMin"
+      v-model:max="queryDurationMax"
+      label="时长范围"
+      :max-hours="24"
+    />
 
     <view v-if="showQrModal" class="modal-mask" @tap="closeQrModal">
       <view class="modal" @tap.stop>
@@ -83,13 +84,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onHide, onUnload, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
-import InfoLineCard from '@/components/InfoLineCard.vue'
-import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
-import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
+import DateRangeFilter from '@/components/DateRangeFilter.vue'
+import DateRangePopup from '@/components/DateRangePopup.vue'
+import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
+import DurationRangePopup from '@/components/DurationRangePopup.vue'
+import FilterInput from '@/components/FilterInput.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
@@ -107,9 +111,9 @@ const queryCreatedBy = ref('')
 const queryDurationMin = ref('')
 const queryDurationMax = ref('')
 const queryStartFrom = ref('')
-const queryStartTo = ref('')
-const queryEndFrom = ref('')
 const queryEndTo = ref('')
+const dateRangePopupVisible = ref(false)
+const durationRangePopupVisible = ref(false)
 
 const projects = ref<AdminProjectItem[]>([])
 const loading = ref(false)
@@ -129,6 +133,8 @@ const qrNonce = ref(0)
 
 const pollIntervalMs = 2000
 let timer: ReturnType<typeof setInterval> | null = null
+let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
+let autoQueryReady = false
 
 const qrColors = ['#2b7a78', '#5f60e7', '#e26464', '#ea580c', '#0f766e', '#7c3aed']
 const qrColorIndex = ref(0)
@@ -185,9 +191,9 @@ const buildCheckInfoCard = (item: AdminProjectItem) => {
       [{ text: `描述：${item.description || '无'}` }],
       [{ text: `时间：${formatProjectDate(item.designStartTime)} - ${formatProjectDate(item.designEndTime)}` }],
       [
-        { text: `时长：${item.designVolunteerHours.toFixed(2)}h` },
         { text: `创建者：${item.creatorName || '未命名用户'}` },
-        { text: `负责人：${item.responsibleName || '未分配负责人'}` }
+        { text: `负责人：${item.responsibleName || '未分配负责人'}` },
+        { text: `时长：${item.designVolunteerHours.toFixed(1)}h` }
       ]
     ],
     buttonRows: [[
@@ -207,6 +213,42 @@ const buildCheckInfoCard = (item: AdminProjectItem) => {
       }
     ]]
   }
+}
+
+const projectRecordItems = computed<ProjectRecordItem[]>(() => {
+  return projects.value.map((item) => ({
+    id: item.projectId,
+    card: buildCheckInfoCard(item)
+  }))
+})
+
+const openDateRangePopup = () => {
+  dateRangePopupVisible.value = true
+}
+
+const openDurationRangePopup = () => {
+  durationRangePopupVisible.value = true
+}
+
+const triggerAutoQuery = (immediate = false) => {
+  if (!autoQueryReady) {
+    return
+  }
+
+  if (autoQueryTimer) {
+    clearTimeout(autoQueryTimer)
+    autoQueryTimer = null
+  }
+
+  if (immediate) {
+    void loadProjects(true)
+    return
+  }
+
+  autoQueryTimer = setTimeout(() => {
+    autoQueryTimer = null
+    void loadProjects(true)
+  }, 260)
 }
 
 const toMaybeNumber = (value: string) => {
@@ -234,8 +276,6 @@ const buildQuery = () => ({
   durationHoursMin: toMaybeNumber(queryDurationMin.value),
   durationHoursMax: toMaybeNumber(queryDurationMax.value),
   startTimeFrom: toIsoTime(queryStartFrom.value, false),
-  startTimeTo: toIsoTime(queryStartTo.value, true),
-  endTimeFrom: toIsoTime(queryEndFrom.value, false),
   endTimeTo: toIsoTime(queryEndTo.value, true),
   page: page.value,
   pageSize: PAGE_SIZE
@@ -292,18 +332,6 @@ const loadProjects = async (reset = false) => {
   }
 }
 
-const resetQuery = async () => {
-  queryName.value = ''
-  queryCreatedBy.value = ''
-  queryDurationMin.value = ''
-  queryDurationMax.value = ''
-  queryStartFrom.value = ''
-  queryStartTo.value = ''
-  queryEndFrom.value = ''
-  queryEndTo.value = ''
-  await loadProjects(true)
-}
-
 const clearPollingTimer = () => {
   if (timer) {
     clearInterval(timer)
@@ -358,12 +386,31 @@ const closeQrModal = () => {
 }
 
 useAuthGuard({
-  routePath: '/pages/admin/clockin',
+  routePath: '/pages/admin/check',
   roleCheck: (role) => role === 2 || role === 3,
   onForbidden: () => {
     openFunctionEntry()
   },
-  onAuthorized: () => loadProjects(true)
+  onAuthorized: async () => {
+    await loadProjects(true)
+    autoQueryReady = true
+  }
+})
+
+watch(queryName, () => {
+  triggerAutoQuery(false)
+})
+
+watch(queryCreatedBy, () => {
+  triggerAutoQuery(false)
+})
+
+watch([queryDurationMin, queryDurationMax], () => {
+  triggerAutoQuery(true)
+})
+
+watch([queryStartFrom, queryEndTo], () => {
+  triggerAutoQuery(true)
 })
 
 onHide(() => {
@@ -399,120 +446,22 @@ onPullDownRefresh(async () => {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding: 24rpx;
+  padding: 24rpx 0;
   box-sizing: border-box;
 }
 
-.filter-panel,
-.list-panel {
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 12rpx 26rpx rgba(15, 23, 42, 0.08);
-}
-
-.filter-panel {
-  padding: 16rpx;
-  margin-bottom: 16rpx;
-}
-
-.filter-grid {
+.filter-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12rpx;
-}
-
-.filter-item {
-  width: calc(50% - 6rpx);
-  min-height: 120rpx;
-  border: 1rpx solid #e5e7eb;
-  border-radius: 12rpx;
-  background: #f8fafc;
-  padding: 10rpx 12rpx;
-  box-sizing: border-box;
-}
-
-.filter-label {
-  display: block;
-  font-size: 20rpx;
-  color: #6b7280;
-  margin-bottom: 8rpx;
-}
-
-.filter-value,
-.filter-input {
   width: 100%;
-  min-height: 68rpx;
-  border-radius: 10rpx;
-  background: #ffffff;
-  border: 1rpx solid #d1d5db;
-  padding: 0 12rpx;
-  display: flex;
-  align-items: center;
   box-sizing: border-box;
-  font-size: 24rpx;
-  color: #111827;
 }
 
-.filter-value.fixed {
-  color: #2b7a78;
-  font-weight: 700;
-}
-
-.placeholder {
-  color: #9ca3af;
-}
-
-.filter-actions {
-  margin-top: 12rpx;
-  display: flex;
-  gap: 12rpx;
-}
-
-.btn {
-  margin: 0;
-  flex: 1;
-  height: 66rpx;
-  border: none;
-  border-radius: 10rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.btn::after {
-  border: none;
-}
-
-.btn-primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.btn-secondary {
-  color: #374151;
-  background: #e5e7eb;
-}
-
-.state-row {
-  text-align: center;
-  padding: 24rpx;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.state-row.error {
-  color: #b42318;
-}
-
-.list-panel {
-  padding: 14rpx 16rpx;
-}
-
-.load-more-row {
-  padding: 18rpx 0 12rpx;
-  text-align: center;
-  color: #6b7280;
-  font-size: 22rpx;
+.filter-bar-item {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .modal-mask {
@@ -581,5 +530,24 @@ onPullDownRefresh(async () => {
 
 .modal-actions {
   margin-top: 14rpx;
+}
+
+.btn {
+  margin: 0;
+  flex: 1;
+  height: 66rpx;
+  border: none;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+
+.btn::after {
+  border: none;
+}
+
+.btn-secondary {
+  color: #374151;
+  background: #e5e7eb;
 }
 </style>

@@ -788,7 +788,7 @@ onPullDownRefresh(async () => {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding: 24rpx;
+  padding: 24rpx 0;
   box-sizing: border-box;
 }
 
@@ -796,7 +796,7 @@ onPullDownRefresh(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16rpx;
+  margin: 0 24rpx 16rpx;
 }
 
 .toolbar-title {

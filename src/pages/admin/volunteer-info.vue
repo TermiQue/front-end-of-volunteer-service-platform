@@ -2,99 +2,62 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="search-bar">
-        <text class="search-label">搜索方式</text>
-        <view class="search-segment">
-          <view
-            class="search-segment-item"
-            :class="searchMode === 'name' ? 'active' : ''"
-            @tap="setSearchMode('name')"
-          >
-            姓名
+      <ProjectRecordSection
+        title="志愿者信息"
+        :items="volunteerRecordItems"
+        :loading="loading && !volunteerRows.length"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :error-message="errorMessage"
+        loading-text="正在加载志愿者列表..."
+        empty-text="暂无符合条件的数据"
+        no-more-text="没有更多了"
+      >
+        <template #filters>
+          <SegmentFilter :model-value="searchMode" :options="searchModeOptions" @change="setSearchMode" />
+
+          <view class="filter-bar">
+            <view class="filter-bar-item">
+              <FilterInput
+                v-model="searchKeyword"
+                :label="searchMode === 'name' ? '姓名关键词' : '学号关键词'"
+                :placeholder="searchMode === 'name' ? '请输入姓名' : '请输入学号'"
+              />
+            </view>
+
+            <view class="filter-bar-item">
+              <DurationRangeFilter
+                :min="durationMin"
+                :max="durationMax"
+                label="时长范围"
+                placeholder="请选择时长范围"
+                @open="openDurationRangePopup"
+              />
+            </view>
           </view>
-          <view
-            class="search-segment-item"
-            :class="searchMode === 'studentId' ? 'active' : ''"
-            @tap="setSearchMode('studentId')"
-          >
-            学号
-          </view>
-        </view>
-      </view>
-
-      <view class="search-bar">
-        <text class="search-label">关键词</text>
-        <input
-          class="search-input"
-          v-model="searchKeyword"
-          type="text"
-          :placeholder="searchMode === 'name' ? '请输入姓名' : '请输入学号'"
-          placeholder-class="search-placeholder"
-        />
-      </view>
-
-      <view class="range-bar">
-        <view class="range-group">
-          <text class="range-label">时长范围</text>
-          <view class="range-input-wrap">
-            <PopupDurationPicker v-model="durationMin" title="选择最小时长" placeholder="最小" :max-hours="24" />
-            <text class="range-sep">-</text>
-            <PopupDurationPicker v-model="durationMax" title="选择最大时长" placeholder="最大" :max-hours="24" />
-          </view>
-        </view>
-
-        <view class="range-group">
-          <text class="range-label">项目范围</text>
-          <view class="range-input-wrap">
-            <input
-              class="range-input"
-              v-model="projectMin"
-              type="number"
-              placeholder="最小"
-              placeholder-class="search-placeholder"
-            />
-            <text class="range-sep">-</text>
-            <input
-              class="range-input"
-              v-model="projectMax"
-              type="number"
-              placeholder="最大"
-              placeholder-class="search-placeholder"
-            />
-          </view>
-        </view>
-      </view>
-
-      <view class="action-row">
-        <button class="action-btn action-btn-secondary" @tap="resetFilters">重置</button>
-        <button class="action-btn action-btn-primary" @tap="loadVolunteers(true)">查询</button>
-      </view>
-
-      <view class="table-wrapper">
-        <view v-if="loading && !volunteerRows.length" class="state-row">正在加载志愿者列表...</view>
-        <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
-        <view v-else-if="!volunteerRows.length" class="state-row">暂无符合条件的数据</view>
-
-        <view v-else class="card-list">
-          <InfoLineCard v-for="item in volunteerRows" :key="item.userId" :card="buildVolunteerInfoCard(item)" />
-        </view>
-
-        <view v-if="volunteerRows.length" class="load-more-row">
-          <text v-if="loadingMore">加载中...</text>
-          <text v-else-if="!hasMore">没有更多了</text>
-          <text v-else>上拉加载更多</text>
-        </view>
-      </view>
+        </template>
+      </ProjectRecordSection>
     </view>
+
+    <DurationRangePopup
+      v-model:visible="durationRangePopupVisible"
+      v-model:min="durationMin"
+      v-model:max="durationMax"
+      label="时长范围"
+      :max-hours="24"
+    />
 
   </view>
 </template>
 
 <script setup lang="ts">
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
-import InfoLineCard from '@/components/InfoLineCard.vue'
-import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
-import { computed, ref } from 'vue'
+import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
+import DurationRangePopup from '@/components/DurationRangePopup.vue'
+import FilterInput from '@/components/FilterInput.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
+import SegmentFilter from '@/components/SegmentFilter.vue'
+import { computed, ref, watch } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import { useAuthGuard } from '@/composables/useAuthGuard'
@@ -111,8 +74,7 @@ const searchKeyword = ref('')
 const searchMode = ref<'name' | 'studentId'>('name')
 const durationMin = ref('')
 const durationMax = ref('')
-const projectMin = ref('')
-const projectMax = ref('')
+const durationRangePopupVisible = ref(false)
 
 const volunteerRows = ref<AdminVolunteerListItem[]>([])
 const loading = ref(false)
@@ -122,10 +84,17 @@ const page = ref(1)
 const hasMore = ref(true)
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
+const SEARCH_MODE_OPTIONS = [
+  { label: '姓名', value: 'name' },
+  { label: '学号', value: 'studentId' }
+] as const
 
 const changingRoleUserId = ref<number | null>(null)
+let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
+let autoQueryReady = false
 
 const isSuperAdmin = computed(() => currentRole.value === 3)
+const searchModeOptions = [...SEARCH_MODE_OPTIONS]
 
 const toNumberOrUndefined = (value: string) => {
   if (!value.trim()) {
@@ -159,7 +128,7 @@ const buildVolunteerInfoCard = (item: AdminVolunteerListItem) => {
 
   return {
     title: {
-      text: `${item.name || '-'}（${item.nickname || '-'}）`
+      text: item.name || '-'
     },
     tag: {
       text: toRoleLabel(item.role),
@@ -172,8 +141,7 @@ const buildVolunteerInfoCard = (item: AdminVolunteerListItem) => {
     },
     rows: [
       [{ text: `学号：${item.studentId || '-'}` }, { text: `手机号：${item.phone || '-'}` }],
-      [{ text: `时长：${item.volunteerHours.toFixed(2)}h` }, { text: `项目数：${item.projectCount}` }],
-      [{ text: `昵称：${item.nickname || '-'}` }]
+      [{ text: `时长：${item.volunteerHours.toFixed(2)}h` }, { text: `项目数：${item.projectCount}` }]
     ],
     buttonRows: [[
       canToggleRole
@@ -201,13 +169,43 @@ const buildVolunteerInfoCard = (item: AdminVolunteerListItem) => {
   }
 }
 
+const volunteerRecordItems = computed<ProjectRecordItem[]>(() => {
+  return volunteerRows.value.map((item) => ({
+    id: item.userId,
+    card: buildVolunteerInfoCard(item)
+  }))
+})
+
+const triggerAutoQuery = (immediate = false) => {
+  if (!autoQueryReady) {
+    return
+  }
+
+  if (autoQueryTimer) {
+    clearTimeout(autoQueryTimer)
+    autoQueryTimer = null
+  }
+
+  if (immediate) {
+    void loadVolunteers(true)
+    return
+  }
+
+  autoQueryTimer = setTimeout(() => {
+    autoQueryTimer = null
+    void loadVolunteers(true)
+  }, 260)
+}
+
+const openDurationRangePopup = () => {
+  durationRangePopupVisible.value = true
+}
+
 const buildQuery = () => ({
   name: searchMode.value === 'name' ? searchKeyword.value.trim() || undefined : undefined,
   studentId: searchMode.value === 'studentId' ? searchKeyword.value.trim() || undefined : undefined,
   volunteerHoursMin: toNumberOrUndefined(durationMin.value),
   volunteerHoursMax: toNumberOrUndefined(durationMax.value),
-  projectCountMin: toNumberOrUndefined(projectMin.value),
-  projectCountMax: toNumberOrUndefined(projectMax.value),
   page: page.value,
   pageSize: PAGE_SIZE
 })
@@ -262,19 +260,14 @@ const loadVolunteers = async (reset = false) => {
   }
 }
 
-const resetFilters = async () => {
-  searchKeyword.value = ''
-  searchMode.value = 'name'
-  durationMin.value = ''
-  durationMax.value = ''
-  projectMin.value = ''
-  projectMax.value = ''
-  await loadVolunteers(true)
-}
-
 const setSearchMode = (mode: 'name' | 'studentId') => {
+  if (searchMode.value === mode) {
+    return
+  }
+
   searchMode.value = mode
   searchKeyword.value = ''
+  triggerAutoQuery(true)
 }
 
 const goToDetailPage = async (userId: number) => {
@@ -313,7 +306,18 @@ useAuthGuard({
   onForbidden: () => {
     openFunctionEntry()
   },
-  onAuthorized: () => loadVolunteers(true)
+  onAuthorized: async () => {
+    await loadVolunteers(true)
+    autoQueryReady = true
+  }
+})
+
+watch(searchKeyword, () => {
+  triggerAutoQuery(false)
+})
+
+watch([durationMin, durationMax], () => {
+  triggerAutoQuery(true)
 })
 
 onReachBottom(async () => {
@@ -341,220 +345,22 @@ onPullDownRefresh(async () => {
   position: relative;
   z-index: 1;
   min-height: 100vh;
-  padding: 40rpx 30rpx calc(200rpx + env(safe-area-inset-bottom));
-}
-
-.search-bar {
-  margin-bottom: 20rpx;
-  padding: 22rpx 24rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-}
-
-.search-label {
-  flex-shrink: 0;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #2b7a78;
-}
-
-.search-segment {
-  display: flex;
-  gap: 10rpx;
-}
-
-.search-segment-item {
-  min-width: 92rpx;
-  height: 56rpx;
-  padding: 0 16rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid #d7dde3;
-  background: rgba(248, 250, 252, 0.96);
-  color: #4b5563;
-  font-size: 24rpx;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.search-segment-item.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.search-input {
-  flex: 1;
-  height: 72rpx;
-  padding: 0 20rpx;
-  border-radius: 16rpx;
-  background: rgba(248, 250, 252, 0.96);
-  font-size: 26rpx;
-  color: #111827;
+  padding: 24rpx 0 calc(200rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
-.search-placeholder {
-  color: #9ca3af;
-}
-
-.range-bar {
-  margin-bottom: 20rpx;
-  padding: 22rpx 24rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
+.filter-bar {
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
-}
-
-.range-group {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.range-label {
-  flex: 0 0 120rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #2b7a78;
-}
-
-.range-input-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
   gap: 12rpx;
-}
-
-.range-input {
-  flex: 1;
-  height: 64rpx;
-  padding: 0 16rpx;
-  border-radius: 12rpx;
-  background: rgba(248, 250, 252, 0.96);
-  font-size: 24rpx;
-  color: #111827;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.range-sep {
-  flex: 0 0 auto;
-  color: #6b7280;
-  font-size: 26rpx;
-}
-
-.review-filter-bar {
-  margin-bottom: 20rpx;
-  padding: 22rpx 24rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
-}
-
-.review-filter-label {
-  display: block;
-  margin-bottom: 14rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #2b7a78;
-}
-
-.review-filter-segment {
-  display: flex;
-  gap: 12rpx;
-}
-
-.review-filter-item {
-  flex: 1;
-  min-width: 0;
-  height: 62rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid #d7dde3;
-  background: rgba(248, 250, 252, 0.96);
-  color: #4b5563;
-  font-size: 24rpx;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.review-filter-item.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.action-row {
-  display: flex;
-  gap: 12rpx;
-  margin-bottom: 20rpx;
-}
-
-.action-btn {
-  margin: 0;
-  flex: 1;
-  height: 70rpx;
-  border: none;
-  border-radius: 14rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-}
-
-.action-btn::after {
-  border: none;
-}
-
-.action-btn-primary {
-  color: #ffffff;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
-}
-
-.load-more-row {
-  padding: 18rpx 0 12rpx;
-  text-align: center;
-  color: #6b7280;
-  font-size: 22rpx;
-}
-
-.action-btn-secondary {
-  color: #374151;
-  background: #e5e7eb;
-}
-
-.table-wrapper {
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(255, 255, 255, 0.72);
-  border-radius: 22rpx;
-  box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-  padding: 10rpx 14rpx 4rpx;
-}
-
-.state-row {
-  text-align: center;
-  padding: 24rpx;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.state-row.error {
-  color: #b42318;
-}
-
-.card-list {
+.filter-bar-item {
   width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
 </style>
