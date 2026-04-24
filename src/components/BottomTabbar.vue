@@ -40,8 +40,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 
 import { openFunctionEntry, openHome, openIconEntry, openMessage, openMine } from '@/utils/navigation'
+import { authReady, isLoggedIn } from '@/utils/auth'
+import { notificationUnreadCount, refreshNotificationUnreadCount } from '@/utils/notification'
 import { getAssetUrl } from '@/utils/urls'
 
 const TABBAR_ICON_PATHS = [
@@ -49,20 +52,35 @@ const TABBAR_ICON_PATHS = [
   '/tabbar/function.svg',
   '/tabbar/logo_center.png',
   '/tabbar/message.svg',
+  '/tabbar/message-dot.svg',
   '/tabbar/mine.svg'
 ] as const
 
 const homeIcon = getAssetUrl(TABBAR_ICON_PATHS[0])
 const functionIcon = getAssetUrl(TABBAR_ICON_PATHS[1])
 const iconTabIcon = getAssetUrl(TABBAR_ICON_PATHS[2])
-const messageIcon = getAssetUrl(TABBAR_ICON_PATHS[3])
-const mineIcon = getAssetUrl(TABBAR_ICON_PATHS[4])
+const messageDefaultIcon = getAssetUrl(TABBAR_ICON_PATHS[3])
+const messageDotIcon = getAssetUrl(TABBAR_ICON_PATHS[4])
+const mineIcon = getAssetUrl(TABBAR_ICON_PATHS[5])
 
 const props = defineProps<{
   selected?: number
 }>()
 
 const selected = computed(() => props.selected ?? 0)
+const messageIcon = computed(() => (notificationUnreadCount.value > 0 ? messageDotIcon : messageDefaultIcon))
+
+onShow(async () => {
+  if (!authReady.value || !isLoggedIn.value) {
+    return
+  }
+
+  try {
+    await refreshNotificationUnreadCount()
+  } catch {
+    // Keep the current icon state if unread refresh fails.
+  }
+})
 
 const handleHomeTap = () => {
   if (selected.value === 0) {

@@ -1,3 +1,5 @@
+import { ref } from 'vue'
+
 import { requestJson } from './request'
 
 export type NotificationReadStatus = 0 | 1
@@ -21,6 +23,8 @@ export type NotificationQuery = {
   page?: number
   pageSize?: number
 }
+
+export const notificationUnreadCount = ref(0)
 
 type NotificationRaw = Record<string, unknown>
 
@@ -96,6 +100,8 @@ export const fetchMyNotifications = async (params: NotificationQuery = {}) => {
     data: compactObject(params)
   })
 
+  notificationUnreadCount.value = data.unreadCount
+
   return {
     items: data.items.map((item, index) => toNotificationItem(item, index)),
     total: data.total,
@@ -111,6 +117,7 @@ export const markNotificationAsRead = async (notificationId: number) => {
     method: 'POST'
   })
 
+  notificationUnreadCount.value = Math.max(0, notificationUnreadCount.value - 1)
   return toNotificationItem(data.notification, 0)
 }
 
@@ -119,4 +126,13 @@ export const deleteNotification = async (notificationId: number) => {
     url: `/auth/notifications/${notificationId}`,
     method: 'DELETE'
   })
+}
+
+export const refreshNotificationUnreadCount = async () => {
+  const data = await fetchMyNotifications({
+    page: 1,
+    pageSize: 1
+  })
+
+  return data.unreadCount
 }

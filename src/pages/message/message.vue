@@ -43,12 +43,13 @@ import {
   deleteNotification,
   fetchMyNotifications,
   markNotificationAsRead,
+  notificationUnreadCount,
   type NotificationItem
 } from '@/utils/notification'
 import { formatProjectDate } from '@/utils/project'
 
 const notifications = ref<NotificationItem[]>([])
-const unreadCount = ref(0)
+const unreadCount = notificationUnreadCount
 const loading = ref(false)
 const loadingMore = ref(false)
 const errorMessage = ref('')
@@ -91,7 +92,6 @@ const markOneAsRead = async (item: NotificationItem) => {
 
   const updated = await markNotificationAsRead(item.id)
   replaceNotification(updated)
-  unreadCount.value = Math.max(0, unreadCount.value - 1)
 }
 
 const markAllNotificationsAsRead = async () => {
