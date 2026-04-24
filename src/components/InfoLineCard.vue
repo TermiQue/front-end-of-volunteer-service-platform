@@ -182,6 +182,8 @@ const onButtonTap = async (button: CardButton, rowIndex: number, buttonIndex: nu
 
 <style scoped lang="scss">
 .history-item {
+  position: relative;
+  z-index: 2;
   padding: 14rpx 0;
   border-bottom: 1rpx dashed #e6e8ec;
 }

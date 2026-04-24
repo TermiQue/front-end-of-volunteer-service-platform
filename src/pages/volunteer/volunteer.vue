@@ -41,29 +41,7 @@
     <view class="history-block">
       <view class="history-title">历史项目记录</view>
 
-      <view class="status-filter">
-        <view
-          class="status-pill"
-          :class="statusFilter === 'all' ? 'active' : ''"
-          @tap="setStatusFilter('all')"
-        >
-          全部
-        </view>
-        <view
-          class="status-pill"
-          :class="statusFilter === 'ongoing' ? 'active' : ''"
-          @tap="setStatusFilter('ongoing')"
-        >
-          进行中
-        </view>
-        <view
-          class="status-pill"
-          :class="statusFilter === 'ended' ? 'active' : ''"
-          @tap="setStatusFilter('ended')"
-        >
-          已结束
-        </view>
-      </view>
+      <SegmentFilter :model-value="statusFilter" :options="statusFilterOptions" @change="setStatusFilter" />
 
       <view class="filter-bar">
         <view class="filter-item full-width">
@@ -126,6 +104,7 @@ import BottomTabbar from '@/components/BottomTabbar.vue'
 import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
+import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
 import { currentRole } from '@/utils/auth'
@@ -144,6 +123,14 @@ const reviewIcon = getAssetUrl('/icons/review.svg')
 const checkinIcon = getAssetUrl('/icons/checkin.svg')
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE
+const STATUS_FILTER_OPTIONS = [
+  { label: '全部', value: 'all' },
+  { label: '进行中', value: 'ongoing' },
+  { label: '已结束', value: 'ended' }
+] as const
+
+type StatusFilter = (typeof STATUS_FILTER_OPTIONS)[number]['value']
+const statusFilterOptions = [...STATUS_FILTER_OPTIONS]
 
 type HistoryViewItem = {
   id: number
@@ -191,7 +178,7 @@ const errorMessage = ref('')
 const page = ref(1)
 const hasMore = ref(true)
 
-const statusFilter = ref<'all' | 'ongoing' | 'ended'>('all')
+const statusFilter = ref<StatusFilter>('all')
 const keyword = ref('')
 const dateStart = ref('')
 const dateEnd = ref('')
@@ -376,7 +363,14 @@ const loadHistory = async (reset = false) => {
   }
 }
 
-const setStatusFilter = async (value: 'all' | 'ongoing' | 'ended') => {
+const isStatusFilter = (value: string): value is StatusFilter =>
+  STATUS_FILTER_OPTIONS.some((option) => option.value === value)
+
+const setStatusFilter = async (value: string) => {
+  if (!isStatusFilter(value)) {
+    return
+  }
+
   if (statusFilter.value === value) {
     return
   }
@@ -657,12 +651,40 @@ onPullDownRefresh(async () => {
 }
 
 .history-block {
+  position: relative;
+  overflow: hidden;
   margin: 36rpx 24rpx 36rpx;
   padding: 20rpx;
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(255, 255, 255, 0.75);
-  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.34);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 14rpx 32rpx rgba(15, 23, 42, 0.1),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16rpx) saturate(135%);
+  -webkit-backdrop-filter: blur(16rpx) saturate(135%);
+  box-sizing: border-box;
+}
+
+.history-block::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  z-index: 1;
+}
+
+.history-title,
+.segment-filter,
+.filter-bar,
+.state-row,
+.load-more-row {
+  position: relative;
+  z-index: 2;
 }
 
 .history-title {
@@ -670,32 +692,6 @@ onPullDownRefresh(async () => {
   font-weight: 700;
   color: #2b7a78;
   margin-bottom: 12rpx;
-}
-
-.status-filter {
-  display: flex;
-  gap: 12rpx;
-  margin-bottom: 14rpx;
-}
-
-.status-pill {
-  flex: 1;
-  height: 62rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12rpx;
-  border: 1rpx solid #dbe2ea;
-  color: #4b5563;
-  font-size: 24rpx;
-  font-weight: 600;
-  background: #f8fafc;
-}
-
-.status-pill.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #5f60e7 0%, #6366f1 100%);
 }
 
 .filter-bar {
