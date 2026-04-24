@@ -26,7 +26,7 @@
           <view class="hero-fade hero-fade-right"></view>
         </view>
 
-        <view class="hero-caption">v0.0.6.6</view>
+        <view class="hero-caption">{{ VISION }}</view>
       </view>
 
       <view class="title-wrap">
@@ -108,6 +108,9 @@ type GalleryDetailSource = {
   path?: unknown
   content?: unknown
 }
+
+const APP_VERSION = (import.meta.env.VITE_VISION || '').trim()
+const VISION = APP_VERSION ? `版本 ${APP_VERSION}` : ''
 
 const BANNER_PATHS = ['/banners/1.png', '/banners/2.png', '/banners/3.png']
 
