@@ -26,6 +26,7 @@ const emit = defineEmits<{
 }>()
 
 const hasValue = computed(() => Boolean(props.min || props.max))
+
 const formatDurationText = (value: string) => {
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) {
