@@ -46,15 +46,13 @@
       <view class="filter-bar">
         <FilterInput v-model="keyword" label="项目关键字" placeholder="请输入项目名称关键字" />
 
-        <view class="filter-item">
-          <text class="filter-label">开始日期</text>
-          <PopupDateCalendar v-model="dateStart" title="选择开始日期" placeholder="请选择" />
-        </view>
-
-        <view class="filter-item">
-          <text class="filter-label">结束日期</text>
-          <PopupDateCalendar v-model="dateEnd" title="选择结束日期" placeholder="请选择" />
-        </view>
+        <DateRangeFilter
+          :start="dateStart"
+          :end="dateEnd"
+          label="日期范围"
+          placeholder="请选择日期范围"
+          @open="openDateRangePopup"
+        />
 
         <view class="filter-item">
           <text class="filter-label">最小时长 (h)</text>
@@ -83,6 +81,13 @@
     </view>
   </view>
 
+  <DateRangePopup
+    v-model:visible="dateRangePopupVisible"
+    v-model:start="dateStart"
+    v-model:end="dateEnd"
+    label="日期范围"
+  />
+
   <BottomTabbar :selected="1" />
 </template>
 
@@ -92,9 +97,10 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
+import DateRangeFilter from '@/components/DateRangeFilter.vue'
+import DateRangePopup from '@/components/DateRangePopup.vue'
 import FilterInput from '@/components/FilterInput.vue'
 import InfoLineCard from '@/components/InfoLineCard.vue'
-import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
@@ -174,8 +180,13 @@ const statusFilter = ref<StatusFilter>('all')
 const keyword = ref('')
 const dateStart = ref('')
 const dateEnd = ref('')
+const dateRangePopupVisible = ref(false)
 const hourMin = ref('')
 const hourMax = ref('')
+
+const openDateRangePopup = () => {
+  dateRangePopupVisible.value = true
+}
 
 const toMaybeNumber = (value: string) => {
   if (!value.trim()) {

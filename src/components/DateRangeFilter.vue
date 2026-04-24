@@ -1,42 +1,50 @@
 <template>
-  <view class="filter-input-card" :class="{ active: hasValue }">
+  <view class="date-range-filter" :class="{ active: hasValue }" @tap="emit('open')">
     <text class="filter-label">{{ label }}</text>
-    <input
-      class="filter-input"
-      :value="modelValue"
-      type="text"
-      :placeholder="placeholder"
-      placeholder-class="filter-placeholder"
-      @input="handleInput"
-    />
+    <text class="range-value" :class="{ placeholder: !hasValue }">{{ displayValue }}</text>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{
-  modelValue: string
-  label: string
-  placeholder: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    start: string
+    end: string
+    label?: string
+    placeholder?: string
+  }>(),
+  {
+    label: '日期范围',
+    placeholder: '请选择日期范围'
+  }
+)
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void
-  (e: 'change', value: string): void
+  (e: 'open'): void
 }>()
 
-const hasValue = computed(() => props.modelValue.trim().length > 0)
+const hasValue = computed(() => Boolean(props.start || props.end))
+const displayValue = computed(() => {
+  if (props.start && props.end) {
+    return `${props.start} - ${props.end}`
+  }
 
-const handleInput = (event: Event) => {
-  const value = (event as Event & { detail?: { value?: string } }).detail?.value || ''
-  emit('update:modelValue', value)
-  emit('change', value)
-}
+  if (props.start) {
+    return `${props.start} -`
+  }
+
+  if (props.end) {
+    return `- ${props.end}`
+  }
+
+  return props.placeholder
+})
 </script>
 
 <style scoped lang="scss">
-.filter-input-card {
+.date-range-filter {
   min-width: 100%;
   height: 62rpx;
   display: flex;
@@ -52,7 +60,7 @@ const handleInput = (event: Event) => {
     0 6rpx 16rpx rgba(15, 23, 42, 0.06);
 }
 
-.filter-input-card.active {
+.date-range-filter.active {
   border-color: #2b7a78;
   background: rgba(240, 253, 250, 0.92);
   box-shadow:
@@ -69,19 +77,19 @@ const handleInput = (event: Event) => {
   font-weight: 600;
 }
 
-.filter-input {
+.range-value {
   flex: 1;
   min-width: 0;
-  min-height: 42rpx;
-  width: auto;
-  box-sizing: border-box;
-  padding: 0 8rpx;
   font-size: 22rpx;
   color: #111827;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.filter-placeholder {
+.placeholder {
   color: #9ca3af;
 }
 </style>
