@@ -163,18 +163,38 @@ useAuthGuard({
 }
 
 .user-card {
+  position: relative;
+  overflow: hidden;
   margin: 40rpx 24rpx 0;
   padding: 32rpx;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1rpx solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.34);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
   border-radius: 34rpx;
-  box-shadow: 0 12rpx 32rpx rgba(15, 23, 42, 0.1);
+  box-shadow:
+    0 14rpx 32rpx rgba(15, 23, 42, 0.1),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16rpx) saturate(135%);
+  -webkit-backdrop-filter: blur(16rpx) saturate(135%);
   display: flex;
   gap: 30rpx;
   align-items: center;
 }
 
+.user-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  z-index: 1;
+}
+
 .avatar {
+  position: relative;
+  z-index: 2;
   width: 176rpx;
   height: 176rpx;
   border-radius: 88rpx;
@@ -184,6 +204,8 @@ useAuthGuard({
 }
 
 .info {
+  position: relative;
+  z-index: 2;
   flex: 1;
 }
 
