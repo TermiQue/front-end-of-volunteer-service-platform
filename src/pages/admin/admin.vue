@@ -227,30 +227,52 @@ useAuthGuard({
 }
 
 .action-card {
+  position: relative;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   padding-top: 28rpx;
   padding-bottom: 28rpx;
   padding-left: 20rpx;
   padding-right: 20rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.34);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
   border-radius: 24rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 14rpx 32rpx rgba(15, 23, 42, 0.1),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16rpx) saturate(135%);
+  -webkit-backdrop-filter: blur(16rpx) saturate(135%);
   box-sizing: border-box;
 }
 
+.action-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 44%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
+  z-index: 1;
+}
+
 .action-icon {
+  position: relative;
+  z-index: 2;
   width: 52rpx;
   height: 52rpx;
   margin-bottom: 12rpx;
 }
 
 .action-text {
+  position: relative;
+  z-index: 2;
   font-size: 30rpx;
   color: #2b7a78;
   font-weight: 700;

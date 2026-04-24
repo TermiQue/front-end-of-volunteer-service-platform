@@ -37,11 +37,26 @@
       <view class="section-block">
         <view class="section-title">图集</view>
         <view class="gallery-list">
-          <view class="gallery-card" v-for="item in galleryList" :key="item.url">
+          <view class="gallery-card" v-for="item in galleryList" :key="item.url" @tap="openGalleryPreview(item)">
             <image class="gallery-image" :src="item.url" mode="widthFix" lazy-load />
             <view v-if="item.title" class="gallery-meta">{{ item.title }}</view>
           </view>
         </view>
+      </view>
+    </view>
+
+    <view v-if="previewItem" class="preview-mask" :class="{ 'preview-mask-open': previewOpen }" @tap="closeGalleryPreview">
+      <view
+        class="preview-frame"
+        :class="{ 'preview-image-open': previewOpen }"
+        :style="previewImageStyle"
+      >
+        <image
+          class="preview-image"
+          :src="previewItem.url"
+          mode="aspectFill"
+          @load="handlePreviewImageLoad"
+        />
       </view>
     </view>
 
@@ -50,6 +65,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, ref } from 'vue'
+
 import BottomTabbar from '@/components/BottomTabbar.vue'
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import { getAssetUrl } from '@/utils/urls'
@@ -79,6 +96,65 @@ const galleryList: GalleryItem[] =
     title: item.title,
     url: getAssetUrl(item.path)
   }))
+
+const previewItem = ref<GalleryItem | null>(null)
+const previewOpen = ref(false)
+const previewRotate = ref(0)
+const previewSize = ref({
+  width: uni.upx2px(840),
+  height: uni.upx2px(560)
+})
+
+const previewImageStyle = computed(() => ({
+  '--preview-rotate': `${previewRotate.value}deg`,
+  width: `${previewSize.value.width}px`,
+  height: `${previewSize.value.height}px`
+}))
+
+const openGalleryPreview = async (item: GalleryItem) => {
+  previewItem.value = item
+  previewRotate.value = Math.round(Math.random() * 30 - 15)
+  previewSize.value = {
+    width: uni.upx2px(840),
+    height: uni.upx2px(560)
+  }
+
+  await nextTick()
+  previewOpen.value = true
+}
+
+const handlePreviewImageLoad = (event: Event) => {
+  const detail = (event as Event & { detail?: { width?: number; height?: number } }).detail
+  const imageWidth = detail?.width || 0
+  const imageHeight = detail?.height || 0
+  if (!imageWidth || !imageHeight) {
+    return
+  }
+
+  const ratio = imageWidth / imageHeight
+  const systemInfo = uni.getSystemInfoSync()
+  const maxWidth = Math.min(systemInfo.windowWidth - uni.upx2px(32), uni.upx2px(900))
+  const maxHeight = systemInfo.windowHeight * 0.92
+  let width = maxWidth
+  let height = width / ratio
+
+  if (height > maxHeight) {
+    height = maxHeight
+    width = height * ratio
+  }
+
+  previewSize.value = {
+    width,
+    height
+  }
+}
+
+const closeGalleryPreview = () => {
+  previewOpen.value = false
+  setTimeout(() => {
+    previewItem.value = null
+  }, 260)
+}
 </script>
 
 <style scoped lang="scss">
@@ -248,6 +324,53 @@ const galleryList: GalleryItem[] =
   font-size: 26rpx;
   color: rgba(51, 65, 85, 0.92);
   text-shadow: 0 1rpx 2rpx rgba(255, 255, 255, 0.5);
+}
+
+.preview-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64rpx 36rpx;
+  background: rgba(0, 0, 0, 0);
+  opacity: 0;
+  transition:
+    background 260ms ease,
+    opacity 260ms ease;
+  box-sizing: border-box;
+}
+
+.preview-mask-open {
+  background: rgba(0, 0, 0, 0.72);
+  opacity: 1;
+}
+
+.preview-frame {
+  overflow: hidden;
+  border-radius: 36rpx;
+  box-shadow: 0 28rpx 72rpx rgba(0, 0, 0, 0.36);
+  opacity: 0;
+  transform: scale(0.72) rotate(0deg);
+  transition:
+    opacity 260ms ease,
+    transform 320ms cubic-bezier(0.2, 0.86, 0.24, 1);
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 36rpx;
+}
+
+.preview-image-open {
+  opacity: 1;
+  transform: scale(1) rotate(var(--preview-rotate, 0deg));
 }
 
 </style>
