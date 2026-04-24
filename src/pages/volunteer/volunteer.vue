@@ -44,16 +44,7 @@
       <SegmentFilter :model-value="statusFilter" :options="statusFilterOptions" @change="setStatusFilter" />
 
       <view class="filter-bar">
-        <view class="filter-item full-width">
-          <text class="filter-label">项目关键字</text>
-          <input
-            class="filter-input"
-            v-model="keyword"
-            type="text"
-            placeholder="请输入项目名称关键字"
-            placeholder-class="filter-placeholder"
-          />
-        </view>
+        <FilterInput v-model="keyword" label="项目关键字" placeholder="请输入项目名称关键字" />
 
         <view class="filter-item">
           <text class="filter-label">开始日期</text>
@@ -101,6 +92,7 @@ import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
+import FilterInput from '@/components/FilterInput.vue'
 import InfoLineCard from '@/components/InfoLineCard.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
@@ -711,10 +703,6 @@ onPullDownRefresh(async () => {
   box-sizing: border-box;
 }
 
-.filter-item.full-width {
-  min-width: 100%;
-}
-
 .filter-label {
   display: block;
   font-size: 20rpx;
@@ -722,7 +710,6 @@ onPullDownRefresh(async () => {
   margin-bottom: 6rpx;
 }
 
-.filter-input,
 .filter-value {
   min-height: 42rpx;
   width: 100%;
@@ -731,10 +718,6 @@ onPullDownRefresh(async () => {
   font-size: 22rpx;
   color: #111827;
   font-weight: 500;
-}
-
-.filter-placeholder {
-  color: #9ca3af;
 }
 
 .state-row {

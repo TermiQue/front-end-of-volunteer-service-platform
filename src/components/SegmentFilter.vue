@@ -50,7 +50,7 @@ const selectOption = (value: string) => {
   border-radius: 12rpx;
   border: 1rpx solid rgba(255, 255, 255, 0.86);
   color: #4b5563;
-  font-size: 24rpx;
+  font-size: 20rpx;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.82);
   box-shadow:
