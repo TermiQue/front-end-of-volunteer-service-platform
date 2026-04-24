@@ -64,6 +64,7 @@ import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
 import { openFunctionEntry } from '@/utils/navigation'
 import { currentRole } from '@/utils/auth'
+import { getAssetUrl } from '@/utils/urls'
 
 const userInfo = useUserInfo({ fallbackName: '管理员' })
 const roleTextMap: Record<number, string> = {
@@ -79,12 +80,21 @@ const identityText = computed(() => {
   }
   return roleTextMap[role] || '管理员'
 })
-const volunteerInfoIcon = 'https://img.icons8.com/fluency/96/administrator-male.png'
-const projectReviewIcon = 'https://img.icons8.com/fluency/96/approval.png'
-const juvenileInfoIcon = 'https://img.icons8.com/fluency/96/teenager-male.png'
-const clockinIcon = 'https://img.icons8.com/fluency/96/touch-id.png'
-const projectManageIcon = 'https://img.icons8.com/fluency/96/project-management.png'
-const checkInOutIcon = 'https://img.icons8.com/fluency/96/qr-code.png'
+const ADMIN_ICON_PATHS = {
+  volunteerInfo: '/icons/admin-volunteer-info.svg',
+  projectReview: '/icons/admin-project-review.svg',
+  juvenileInfo: '/icons/admin-juvenile-info.svg',
+  clockin: '/icons/admin-clockin.svg',
+  projectManage: '/icons/admin-project-manage.svg',
+  checkInOut: '/icons/admin-check-in-out.svg'
+} as const
+
+const volunteerInfoIcon = getAssetUrl(ADMIN_ICON_PATHS.volunteerInfo)
+const projectReviewIcon = getAssetUrl(ADMIN_ICON_PATHS.projectReview)
+const juvenileInfoIcon = getAssetUrl(ADMIN_ICON_PATHS.juvenileInfo)
+const clockinIcon = getAssetUrl(ADMIN_ICON_PATHS.clockin)
+const projectManageIcon = getAssetUrl(ADMIN_ICON_PATHS.projectManage)
+const checkInOutIcon = getAssetUrl(ADMIN_ICON_PATHS.checkInOut)
 
 const navigateTo = (url: string) => {
   uni.navigateTo({
