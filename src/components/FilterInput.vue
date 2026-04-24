@@ -37,8 +37,10 @@ const handleInput = (event: Event) => {
 
 <style scoped lang="scss">
 .filter-input-card {
+  width: 100%;
   min-width: 100%;
   height: 62rpx;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 16rpx;

@@ -8,73 +8,47 @@
         <button class="create-btn" @tap="openCreateModal">创建项目</button>
       </view>
 
-      <view class="filter-panel">
-        <view class="filter-grid">
-          <view class="filter-item">
-            <text class="filter-label">状态</text>
-            <picker mode="selector" :range="statusOptions" range-key="label" :value="statusIndex" @change="onStatusChange">
-              <view class="filter-value">{{ statusOptions[statusIndex].label }}</view>
-            </picker>
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">项目名称</text>
-            <input class="filter-input" v-model="queryName" type="text" placeholder="关键字" placeholder-class="placeholder" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">创建者编号（可选）</text>
-            <input class="filter-input" v-model="queryCreatedBy" type="number" placeholder="如 1001" placeholder-class="placeholder" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">负责人编号（可选）</text>
-            <input class="filter-input" v-model="queryResponsibleId" type="number" placeholder="如 2001" placeholder-class="placeholder" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">时长最小值</text>
-            <PopupDurationPicker v-model="queryDurationMin" title="选择时长最小值" placeholder="小时" :max-hours="24" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">时长最大值</text>
-            <PopupDurationPicker v-model="queryDurationMax" title="选择时长最大值" placeholder="小时" :max-hours="24" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">开始时间下界</text>
-            <PopupDateCalendar v-model="queryStartFrom" title="选择开始时间下界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">开始时间上界</text>
-            <PopupDateCalendar v-model="queryStartTo" title="选择开始时间上界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">结束时间下界</text>
-            <PopupDateCalendar v-model="queryEndFrom" title="选择结束时间下界" placeholder="请选择" />
-          </view>
-          <view class="filter-item">
-            <text class="filter-label">结束时间上界</text>
-            <PopupDateCalendar v-model="queryEndTo" title="选择结束时间上界" placeholder="请选择" />
-          </view>
-        </view>
+      <ProjectRecordSection
+        title="项目列表"
+        :items="projectRecordItems"
+        :loading="loading && !projects.length"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :error-message="errorMessage"
+        loading-text="正在加载项目列表..."
+        empty-text="暂无符合条件的项目"
+        no-more-text="没有更多了"
+      >
+        <template #filters>
+          <SegmentFilter :model-value="statusFilterValue" :options="statusFilterOptions" @change="onStatusFilterChange" />
 
-        <view class="filter-actions">
-          <button class="btn btn-secondary" @tap="resetQuery">重置</button>
-          <button class="btn btn-primary" @tap="loadProjects(true)">查询</button>
-        </view>
-      </view>
+          <view class="filter-bar">
+            <view class="filter-bar-item">
+              <FilterInput v-model="queryName" label="项目名称" placeholder="请输入项目名称关键字" />
+            </view>
 
-      <view class="list-panel">
-        <view v-if="loading && !projects.length" class="state-row">正在加载项目列表...</view>
-        <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
-        <view v-else-if="!projects.length" class="state-row">暂无符合条件的项目</view>
+            <view class="filter-bar-item">
+              <DateRangeFilter
+                :start="queryDateFrom"
+                :end="queryDateTo"
+                label="时间范围"
+                placeholder="请选择时间范围"
+                @open="openDateRangePopup"
+              />
+            </view>
 
-        <block v-else v-for="item in projects" :key="item.projectId">
-          <InfoLineCard :card="buildProjectInfoCard(item)" />
-        </block>
-
-        <view v-if="projects.length" class="load-more-row">
-          <text v-if="loadingMore">加载中...</text>
-          <text v-else-if="!hasMore">没有更多了</text>
-          <text v-else>上拉加载更多</text>
-        </view>
-      </view>
+            <view class="filter-bar-item">
+              <DurationRangeFilter
+                :min="queryDurationMin"
+                :max="queryDurationMax"
+                label="时长范围"
+                placeholder="请选择时长范围"
+                @open="openDurationRangePopup"
+              />
+            </view>
+          </view>
+        </template>
+      </ProjectRecordSection>
     </view>
 
     <view class="modal-mask" v-if="showCreateModal" @tap="closeCreateModal">
@@ -154,18 +128,33 @@
         </view>
       </view>
     </view>
+
+    <DateRangePopup v-model:visible="dateRangePopupVisible" v-model:start="queryDateFrom" v-model:end="queryDateTo" label="时间范围" />
+
+    <DurationRangePopup
+      v-model:visible="durationRangePopupVisible"
+      v-model:min="queryDurationMin"
+      v-model:max="queryDurationMax"
+      label="时长范围"
+      :max-hours="24"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
-import InfoLineCard from '@/components/InfoLineCard.vue'
+import DateRangeFilter from '@/components/DateRangeFilter.vue'
+import DateRangePopup from '@/components/DateRangePopup.vue'
+import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
+import DurationRangePopup from '@/components/DurationRangePopup.vue'
+import FilterInput from '@/components/FilterInput.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
-import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import PopupTimePicker from '@/components/PopupTimePicker.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
+import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { currentRole } from '@/utils/auth'
 import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '@/utils/constants'
@@ -177,7 +166,6 @@ import {
   fetchAdminUsers,
   fetchAdminProjects,
   formatProjectDate,
-  projectStatusTextMap,
   startAdminProject,
   updateAdminProjectResponsible,
   type AdminUserItem,
@@ -194,14 +182,12 @@ const statusOptionsAll: Array<{ label: string; value: ProjectStatus | null }> = 
 
 const statusIndex = ref(0)
 const queryName = ref('')
-const queryCreatedBy = ref('')
-const queryResponsibleId = ref('')
 const queryDurationMin = ref('')
 const queryDurationMax = ref('')
-const queryStartFrom = ref('')
-const queryStartTo = ref('')
-const queryEndFrom = ref('')
-const queryEndTo = ref('')
+const queryDateFrom = ref('')
+const queryDateTo = ref('')
+const dateRangePopupVisible = ref(false)
+const durationRangePopupVisible = ref(false)
 
 const projects = ref<AdminProjectItem[]>([])
 const loading = ref(false)
@@ -219,6 +205,8 @@ const responsibleSelectIndex = ref(0)
 const adminUsers = ref<AdminUserItem[]>([])
 const createResponsibleIndex = ref(0)
 const exportingProjectId = ref<number | null>(null)
+let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
+let autoQueryReady = false
 
 const adminUserOptions = computed(() =>
   adminUsers.value.map((item) => ({
@@ -246,6 +234,16 @@ const isSuperAdmin = computed(() => currentRole.value === 3)
 const statusOptions = computed(() =>
   isSuperAdmin.value ? statusOptionsAll : statusOptionsAll.filter((item) => item.value !== 0)
 )
+const statusFilterOptions = computed(() =>
+  statusOptions.value.map((item) => ({
+    label: item.label,
+    value: item.value === null ? 'all' : String(item.value)
+  }))
+)
+const statusFilterValue = computed(() => {
+  const currentValue = statusOptions.value[statusIndex.value]?.value
+  return currentValue === null || currentValue === undefined ? 'all' : String(currentValue)
+})
 const currentUserId = computed(() => {
   const raw = uni.getStorageSync(STORAGE_KEYS.USER_CACHE)
   if (!raw) {
@@ -399,6 +397,13 @@ const buildProjectInfoCard = (item: AdminProjectItem) => {
   }
 }
 
+const projectRecordItems = computed<ProjectRecordItem[]>(() => {
+  return projects.value.map((item) => ({
+    id: item.projectId,
+    card: buildProjectInfoCard(item)
+  }))
+})
+
 const toIsoTime = (value: string, endOfDay = false) => {
   if (!value) {
     return undefined
@@ -437,8 +442,42 @@ const durationText = computed(() => {
   return `${durationHours.value.toFixed(1)} 小时`
 })
 
-const onStatusChange = (event: { detail: { value: string } }) => {
-  statusIndex.value = Number(event.detail.value)
+const onStatusFilterChange = (value: string) => {
+  const nextIndex = statusOptions.value.findIndex((item) => {
+    const optionValue = item.value === null ? 'all' : String(item.value)
+    return optionValue === value
+  })
+
+  statusIndex.value = nextIndex >= 0 ? nextIndex : 0
+}
+
+const openDateRangePopup = () => {
+  dateRangePopupVisible.value = true
+}
+
+const openDurationRangePopup = () => {
+  durationRangePopupVisible.value = true
+}
+
+const triggerAutoQuery = (immediate = false) => {
+  if (!autoQueryReady) {
+    return
+  }
+
+  if (autoQueryTimer) {
+    clearTimeout(autoQueryTimer)
+    autoQueryTimer = null
+  }
+
+  if (immediate) {
+    void loadProjects(true)
+    return
+  }
+
+  autoQueryTimer = setTimeout(() => {
+    autoQueryTimer = null
+    void loadProjects(true)
+  }, 260)
 }
 
 const onCreateResponsibleChange = (event: { detail: { value: string } }) => {
@@ -452,14 +491,10 @@ const onResponsibleSelectChange = (event: { detail: { value: string } }) => {
 const buildQuery = () => ({
   status: statusOptions.value[statusIndex.value]?.value ?? undefined,
   name: queryName.value.trim() || undefined,
-  createdById: toMaybeNumber(queryCreatedBy.value),
-  responsibleId: toMaybeNumber(queryResponsibleId.value),
   durationHoursMin: toMaybeNumber(queryDurationMin.value),
   durationHoursMax: toMaybeNumber(queryDurationMax.value),
-  startTimeFrom: toIsoTime(queryStartFrom.value, false),
-  startTimeTo: toIsoTime(queryStartTo.value, true),
-  endTimeFrom: toIsoTime(queryEndFrom.value, false),
-  endTimeTo: toIsoTime(queryEndTo.value, true),
+  startTimeFrom: toIsoTime(queryDateFrom.value, false),
+  endTimeTo: toIsoTime(queryDateTo.value, true),
   page: page.value,
   pageSize: PAGE_SIZE
 })
@@ -515,20 +550,6 @@ const loadProjects = async (reset = false) => {
     loading.value = false
     loadingMore.value = false
   }
-}
-
-const resetQuery = async () => {
-  statusIndex.value = 0
-  queryName.value = ''
-  queryCreatedBy.value = ''
-  queryResponsibleId.value = ''
-  queryDurationMin.value = ''
-  queryDurationMax.value = ''
-  queryStartFrom.value = ''
-  queryStartTo.value = ''
-  queryEndFrom.value = ''
-  queryEndTo.value = ''
-  await loadProjects(true)
 }
 
 const updateStatus = async (projectId: number, mode: 'start' | 'end') => {
@@ -722,7 +743,24 @@ useAuthGuard({
       uni.showToast({ title: '管理员列表加载失败', icon: 'none' })
     }
     await loadProjects(true)
+    autoQueryReady = true
   }
+})
+
+watch(statusIndex, () => {
+  triggerAutoQuery(true)
+})
+
+watch(queryName, () => {
+  triggerAutoQuery(false)
+})
+
+watch([queryDurationMin, queryDurationMax], () => {
+  triggerAutoQuery(true)
+})
+
+watch([queryDateFrom, queryDateTo], () => {
+  triggerAutoQuery(true)
 })
 
 onReachBottom(async () => {
@@ -783,55 +821,18 @@ onPullDownRefresh(async () => {
   border: none;
 }
 
-.filter-panel,
-.list-panel {
-  border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1rpx solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 12rpx 26rpx rgba(15, 23, 42, 0.08);
-}
-
-.filter-panel {
-  padding: 16rpx;
-  margin-bottom: 16rpx;
-}
-
-.filter-grid {
+.filter-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12rpx;
-}
-
-.filter-item {
-  width: calc(50% - 6rpx);
-  min-height: 120rpx;
-  border: 1rpx solid #e5e7eb;
-  border-radius: 12rpx;
-  background: #f8fafc;
-  padding: 10rpx 12rpx;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.filter-label {
-  display: block;
-  font-size: 20rpx;
-  color: #6b7280;
-  margin-bottom: 8rpx;
-}
-
-.filter-value,
-.filter-input {
-  min-height: 44rpx;
-  font-size: 24rpx;
-  color: #111827;
-  font-weight: 500;
-}
-
-.filter-actions {
-  margin-top: 16rpx;
-  display: flex;
-  justify-content: flex-end;
-  gap: 12rpx;
+.filter-bar-item {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
 .btn {
@@ -855,135 +856,6 @@ onPullDownRefresh(async () => {
 .btn-secondary {
   color: #374151;
   background: #e5e7eb;
-}
-
-.list-panel {
-  padding: 14rpx 16rpx;
-}
-
-.state-row {
-  text-align: center;
-  padding: 22rpx 0;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.state-row.error {
-  color: #b42318;
-}
-
-.project-item {
-  border-bottom: 1rpx dashed #d1d5db;
-  padding: 14rpx 0;
-}
-
-.project-item:last-child {
-  border-bottom: none;
-}
-
-.project-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.name {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #1f2937;
-}
-
-.status-badge {
-  font-size: 22rpx;
-  color: #334155;
-  padding: 4rpx 12rpx;
-  border-radius: 999rpx;
-}
-
-.status-running {
-  color: #065f46;
-  background: #d1fae5;
-}
-
-.status-neutral {
-  color: #475569;
-  background: #e2e8f0;
-}
-
-.meta {
-  margin-top: 6rpx;
-  color: #6b7280;
-  font-size: 22rpx;
-}
-
-.actions {
-  margin-top: 10rpx;
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-}
-
-.action-slot {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-btn {
-  margin: 0;
-  width: 100%;
-  height: 60rpx;
-  border: none;
-  border-radius: 10rpx;
-  color: #fff;
-  font-size: 22rpx;
-  font-weight: 600;
-}
-
-.item-btn::after {
-  border: none;
-}
-
-.item-btn-start {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-}
-
-.item-btn-end {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-}
-
-.item-btn-responsible {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-}
-
-.item-btn-export {
-  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-}
-
-.done-text {
-  width: 100%;
-  height: 60rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  font-size: 22rpx;
-  border-radius: 10rpx;
-  background: rgba(148, 163, 184, 0.14);
-}
-
-.action-placeholder {
-  width: 100%;
-  height: 60rpx;
-  border-radius: 10rpx;
-  background: transparent;
-}
-
-.load-more-row {
-  padding: 20rpx 0 10rpx;
-  text-align: center;
-  color: #6b7280;
-  font-size: 22rpx;
 }
 
 .modal-mask {

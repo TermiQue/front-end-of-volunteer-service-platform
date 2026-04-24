@@ -55,8 +55,10 @@ const displayValue = computed(() => {
 
 <style scoped lang="scss">
 .duration-range-filter {
+  width: 100%;
   min-width: 100%;
   height: 62rpx;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 16rpx;

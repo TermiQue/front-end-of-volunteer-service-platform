@@ -38,45 +38,43 @@
       </view>
     </view>
 
-    <view class="history-block">
-      <view class="history-title">历史项目记录</view>
+    <ProjectRecordSection
+        :items="filteredHistory"
+        :loading="loading"
+        :loading-more="loadingMore"
+        :has-more="hasMore"
+        :error-message="errorMessage"
+      >
+        <template #filters>
+          <SegmentFilter :model-value="statusFilter" :options="statusFilterOptions" @change="setStatusFilter" />
 
-      <SegmentFilter :model-value="statusFilter" :options="statusFilterOptions" @change="setStatusFilter" />
+          <view class="filter-bar">
+            <view class="filter-bar-item">
+              <FilterInput v-model="keyword" label="项目关键字" placeholder="请输入项目名称关键字" />
+            </view>
 
-      <view class="filter-bar">
-        <FilterInput v-model="keyword" label="项目关键字" placeholder="请输入项目名称关键字" />
+            <view class="filter-bar-item">
+              <DateRangeFilter
+                :start="dateStart"
+                :end="dateEnd"
+                label="日期范围"
+                placeholder="请选择日期范围"
+                @open="openDateRangePopup"
+              />
+            </view>
 
-        <DateRangeFilter
-          :start="dateStart"
-          :end="dateEnd"
-          label="日期范围"
-          placeholder="请选择日期范围"
-          @open="openDateRangePopup"
-        />
-
-        <DurationRangeFilter
-          :min="hourMin"
-          :max="hourMax"
-          label="时长范围"
-          placeholder="请选择时长范围"
-          @open="openDurationRangePopup"
-        />
-      </view>
-
-      <view v-if="loading" class="state-row">正在加载项目记录...</view>
-      <view v-else-if="errorMessage" class="state-row error">{{ errorMessage }}</view>
-      <view v-else-if="!filteredHistory.length" class="state-row">暂无符合条件的项目记录</view>
-
-      <block v-else>
-        <InfoLineCard v-for="item in filteredHistory" :key="item.id" :card="item.card" />
-      </block>
-
-      <view v-if="!loading && filteredHistory.length" class="load-more-row">
-        <text v-if="loadingMore">加载中...</text>
-        <text v-else-if="!hasMore">没有更多项目了</text>
-        <text v-else>上滑加载更多</text>
-      </view>
-    </view>
+            <view class="filter-bar-item">
+              <DurationRangeFilter
+                :min="hourMin"
+                :max="hourMax"
+                label="时长范围"
+                placeholder="请选择时长范围"
+                @open="openDurationRangePopup"
+              />
+            </view>
+          </view>
+        </template>
+      </ProjectRecordSection>
   </view>
 
   <DateRangePopup
@@ -108,7 +106,7 @@ import DateRangePopup from '@/components/DateRangePopup.vue'
 import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
 import DurationRangePopup from '@/components/DurationRangePopup.vue'
 import FilterInput from '@/components/FilterInput.vue'
-import InfoLineCard from '@/components/InfoLineCard.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
 import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
@@ -136,30 +134,6 @@ const STATUS_FILTER_OPTIONS = [
 
 type StatusFilter = (typeof STATUS_FILTER_OPTIONS)[number]['value']
 const statusFilterOptions = [...STATUS_FILTER_OPTIONS]
-
-type HistoryViewItem = {
-  id: number
-  card: {
-    title: {
-      text: string
-      className?: string
-    }
-    tag: {
-      text: string
-      when: string
-      matchers: Array<{
-        when: string
-        type: 1 | 2 | 3
-      }>
-    }
-    rows: Array<
-      Array<{
-        text: string
-        className?: string
-      }>
-    >
-  }
-}
 
 const userInfo = useUserInfo({ fallbackName: '志愿者' })
 const roleTextMap: Record<number, string> = {
@@ -394,7 +368,7 @@ const setStatusFilter = async (value: string) => {
   await loadHistory(true)
 }
 
-const filteredHistory = computed<HistoryViewItem[]>(() => {
+const filteredHistory = computed<ProjectRecordItem[]>(() => {
   const key = keyword.value.trim().toLowerCase()
   const minHours = toMaybeNumber(hourMin.value)
   const maxHours = toMaybeNumber(hourMax.value)
@@ -493,8 +467,7 @@ onPullDownRefresh(async () => {
 .title,
 .sub,
 .user-card,
-.action-grid,
-.history-block {
+.action-grid {
   position: relative;
   z-index: 1;
 }
@@ -659,78 +632,18 @@ onPullDownRefresh(async () => {
   line-height: 1.35;
 }
 
-.action-desc {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: #9ca3af;
-}
-
-.history-block {
-  position: relative;
-  overflow: hidden;
-  margin: 36rpx 24rpx 36rpx;
-  padding: 20rpx;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.34);
-  border: 1rpx solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 14rpx 32rpx rgba(15, 23, 42, 0.1),
-    inset 0 1rpx 0 rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(16rpx) saturate(135%);
-  -webkit-backdrop-filter: blur(16rpx) saturate(135%);
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-bottom: 14rpx;
+  width: 100%;
   box-sizing: border-box;
 }
 
-.history-block::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 44%;
-  pointer-events: none;
-  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0));
-  z-index: 1;
-}
-
-.history-title,
-.segment-filter,
-.filter-bar,
-.state-row,
-.load-more-row {
-  position: relative;
-  z-index: 2;
-}
-
-.history-title {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #2b7a78;
-  margin-bottom: 12rpx;
-}
-
-.filter-bar {
-  display: flex;
-  gap: 12rpx;
-  margin-bottom: 14rpx;
-  flex-wrap: wrap;
-}
-
-.state-row {
-  padding: 24rpx 0;
-  text-align: center;
-  font-size: 24rpx;
-  color: #6b7280;
-}
-
-.state-row.error {
-  color: #b42318;
-}
-
-.load-more-row {
-  padding: 18rpx 0 8rpx;
-  text-align: center;
-  color: #9ca3af;
-  font-size: 22rpx;
+.filter-bar-item {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 </style>
