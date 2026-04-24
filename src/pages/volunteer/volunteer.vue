@@ -54,15 +54,13 @@
           @open="openDateRangePopup"
         />
 
-        <view class="filter-item">
-          <text class="filter-label">最小时长 (h)</text>
-          <PopupDurationPicker v-model="hourMin" title="选择最小时长" placeholder="例如 1.5" :max-hours="24" />
-        </view>
-
-        <view class="filter-item">
-          <text class="filter-label">最大时长 (h)</text>
-          <PopupDurationPicker v-model="hourMax" title="选择最大时长" placeholder="例如 8" :max-hours="24" />
-        </view>
+        <DurationRangeFilter
+          :min="hourMin"
+          :max="hourMax"
+          label="时长范围"
+          placeholder="请选择时长范围"
+          @open="openDurationRangePopup"
+        />
       </view>
 
       <view v-if="loading" class="state-row">正在加载项目记录...</view>
@@ -88,6 +86,14 @@
     label="日期范围"
   />
 
+  <DurationRangePopup
+    v-model:visible="durationRangePopupVisible"
+    v-model:min="hourMin"
+    v-model:max="hourMax"
+    label="时长范围"
+    :max-hours="24"
+  />
+
   <BottomTabbar :selected="1" />
 </template>
 
@@ -99,9 +105,10 @@ import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
 import DateRangePopup from '@/components/DateRangePopup.vue'
+import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
+import DurationRangePopup from '@/components/DurationRangePopup.vue'
 import FilterInput from '@/components/FilterInput.vue'
 import InfoLineCard from '@/components/InfoLineCard.vue'
-import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
 import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
@@ -183,9 +190,14 @@ const dateEnd = ref('')
 const dateRangePopupVisible = ref(false)
 const hourMin = ref('')
 const hourMax = ref('')
+const durationRangePopupVisible = ref(false)
 
 const openDateRangePopup = () => {
   dateRangePopupVisible.value = true
+}
+
+const openDurationRangePopup = () => {
+  durationRangePopupVisible.value = true
 }
 
 const toMaybeNumber = (value: string) => {
@@ -702,33 +714,6 @@ onPullDownRefresh(async () => {
   gap: 12rpx;
   margin-bottom: 14rpx;
   flex-wrap: wrap;
-}
-
-.filter-item {
-  flex: 1;
-  min-width: 220rpx;
-  background: #f8fafc;
-  border: 1rpx solid #e5e7eb;
-  border-radius: 14rpx;
-  padding: 10rpx 12rpx;
-  box-sizing: border-box;
-}
-
-.filter-label {
-  display: block;
-  font-size: 20rpx;
-  color: #6b7280;
-  margin-bottom: 6rpx;
-}
-
-.filter-value {
-  min-height: 42rpx;
-  width: 100%;
-  box-sizing: border-box;
-  padding: 0 8rpx;
-  font-size: 22rpx;
-  color: #111827;
-  font-weight: 500;
 }
 
 .state-row {
