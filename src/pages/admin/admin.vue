@@ -2,8 +2,8 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="title">归途·桥梁</view>
-      <view class="sub">“归途·桥梁”青年志愿先锋队</view>
+      <view class="title">归途·桥链</view>
+      <view class="sub">“归途·桥链”青年志愿先锋队</view>
 
       <view class="user-card">
         <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
