@@ -26,7 +26,7 @@
           <view class="hero-fade hero-fade-right"></view>
         </view>
 
-        <view class="hero-caption">v0.0.6.5</view>
+        <view class="hero-caption">v0.0.6.6</view>
       </view>
 
       <view class="title-wrap">

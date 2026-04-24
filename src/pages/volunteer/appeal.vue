@@ -1,44 +1,65 @@
 <template>
-  <view class="container">
+  <view class="page">
     <BackgroundGlow />
 
-    <view class="card">
-      <view class="card-title">提交事务申请</view>
+    <view class="content">
+      <ProjectRecordSection
+        title="事务申请"
+        :items="appealRecordItems"
+        :loading="loadingTargets && !appealTargets.length"
+        :error-message="errorMessage"
+        :has-more="false"
+        loading-text="正在加载可申请对象..."
+        empty-text="暂无可发起申请的对象"
+        no-more-text=""
+        idle-more-text=""
+      >
+        <template #filters>
+          <SegmentFilter :model-value="appealTypeFilterValue" :options="appealTypeFilterOptions" @change="onAppealTypeFilterChange" />
+        </template>
+      </ProjectRecordSection>
+    </view>
 
-      <view class="form-item">
-        <text class="form-label">申请类型</text>
-        <view class="segmented">
-          <view class="segmented-item" :class="appealTypeFilter === 0 ? 'active' : ''" @tap="setAppealTypeFilter(0)">全部</view>
-          <view class="segmented-item" :class="appealTypeFilter === 1 ? 'active' : ''" @tap="setAppealTypeFilter(1)">无效记录申诉</view>
-          <view class="segmented-item" :class="appealTypeFilter === 2 ? 'active' : ''" @tap="setAppealTypeFilter(2)">时长变更</view>
+    <view v-if="showAppealModal" class="modal-mask" @tap="closeAppealModal">
+      <view class="modal" @tap.stop>
+        <view class="modal-title">提交事务申请</view>
+
+        <view class="modal-item">
+          <text class="modal-label">项目</text>
+          <view class="modal-readonly">{{ activeTarget?.projectName || '-' }}</view>
         </view>
-      </view>
 
-      <view class="form-item">
-        <text class="form-label">可申请对象</text>
-        <picker mode="selector" :range="appealTargetOptions" range-key="label" :value="appealTargetIndex" @change="onAppealTargetChange">
-          <view class="picker-value">{{ selectedAppealRecordLabel }}</view>
-        </picker>
-      </view>
+        <view class="modal-item">
+          <text class="modal-label">申请类型</text>
+          <view class="modal-readonly">{{ activeTargetTypeText }}</view>
+        </view>
 
-      <view class="form-item">
-        <text class="form-label">期望时长(小时)</text>
-        <PopupDurationPicker v-model="appealTime" title="选择期望时长" placeholder="例如 2.5" :max-hours="24" />
-      </view>
+        <view class="modal-item">
+          <text class="modal-label">负责人</text>
+          <view class="modal-readonly">{{ activeTarget?.responsibleName || '-' }}</view>
+        </view>
 
-      <view class="form-item">
-        <text class="form-label">申请理由</text>
-        <textarea class="textarea" v-model="appealReason" placeholder="请填写申请理由" placeholder-class="placeholder" />
-      </view>
+        <view class="modal-item">
+          <text class="modal-label">签到 / 签退</text>
+          <view class="modal-readonly">{{ activeCheckTimeText }}</view>
+        </view>
 
-      <view v-if="loadingTargets" class="state-row">正在加载可申请对象...</view>
-      <view v-else-if="!appealTargetOptions.length" class="state-row">暂无可发起申请的对象</view>
+        <view class="modal-item">
+          <text class="modal-label">期望时长(小时)</text>
+          <PopupDurationPicker v-model="appealTime" title="选择期望时长" placeholder="例如 2.5" :max-hours="24" />
+        </view>
 
-      <view class="actions">
-        <button class="btn btn-secondary" @tap="goBack">返回</button>
-        <button class="btn btn-primary" :disabled="submitting || loadingTargets || !appealTargetOptions.length" @tap="submitAppeal">
-          {{ submitting ? '提交中...' : '提交' }}
-        </button>
+        <view class="modal-item">
+          <text class="modal-label">申请理由</text>
+          <textarea class="modal-textarea" v-model="appealReason" placeholder="请填写申请理由" placeholder-class="placeholder" />
+        </view>
+
+        <view class="modal-actions">
+          <button class="btn btn-secondary" @tap="closeAppealModal">取消</button>
+          <button class="btn btn-primary" :disabled="submitting" @tap="submitAppeal">
+            {{ submitting ? '提交中...' : '提交申请' }}
+          </button>
+        </view>
       </view>
     </view>
   </view>
@@ -50,6 +71,8 @@ import { onPullDownRefresh } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import PopupDurationPicker from '@/components/PopupDurationPicker.vue'
+import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
+import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
@@ -62,35 +85,37 @@ import {
 } from '@/utils/project'
 
 const appealTypeFilter = ref<0 | AppealTargetType>(0)
-const appealTargetIndex = ref(0)
 const appealTime = ref('')
 const appealReason = ref('')
 const appealTargets = ref<AppealTargetItem[]>([])
 const loadingTargets = ref(false)
 const submitting = ref(false)
+const errorMessage = ref('')
+const showAppealModal = ref(false)
+const activeTarget = ref<AppealTargetItem | null>(null)
 
 const PAGE_SIZE = 50
+const APPEAL_TYPE_OPTIONS = [
+  { label: '全部', value: 'all' },
+  { label: '无效记录申诉', value: '1' },
+  { label: '时长变更', value: '2' }
+] as const
 
-const appealTargetOptions = computed(() =>
-  appealTargets.value.map((item) => ({
-    participantId: item.participantId,
-    label: `${item.projectName}｜${item.type === 1 ? '无效记录申诉' : '时长变更'}｜负责人:${item.responsibleName || '-'}｜签到:${formatActualTime(item.actualCheckInTime)}｜签退:${formatActualTime(item.actualCheckOutTime)}`
-  }))
-)
-
-const selectedAppealRecordLabel = computed(() => {
-  if (!appealTargetOptions.value.length) {
-    return '暂无可申请记录'
+const appealTypeFilterOptions = [...APPEAL_TYPE_OPTIONS]
+const appealTypeFilterValue = computed(() => (appealTypeFilter.value === 0 ? 'all' : String(appealTypeFilter.value)))
+const activeTargetTypeText = computed(() => {
+  if (!activeTarget.value) {
+    return '-'
+  }
+  return activeTarget.value.type === 1 ? '无效记录申诉' : '时长变更'
+})
+const activeCheckTimeText = computed(() => {
+  if (!activeTarget.value) {
+    return '-'
   }
 
-  return appealTargetOptions.value[appealTargetIndex.value]?.label || appealTargetOptions.value[0].label
+  return `${formatActualTime(activeTarget.value.actualCheckInTime)} / ${formatActualTime(activeTarget.value.actualCheckOutTime)}`
 })
-
-const resetForm = () => {
-  appealTargetIndex.value = 0
-  appealTime.value = ''
-  appealReason.value = ''
-}
 
 const formatActualTime = (value: string | number | null) => {
   if (value === 0 || value === '0' || value === null || value === undefined || value === '') {
@@ -100,31 +125,72 @@ const formatActualTime = (value: string | number | null) => {
   return formatProjectDate(String(value))
 }
 
+const resetForm = () => {
+  appealTime.value = ''
+  appealReason.value = ''
+}
+
+const buildAppealTargetCard = (item: AppealTargetItem) => {
+  const typeText = item.type === 1 ? '无效记录申诉' : '时长变更'
+  const typeWhen = item.type === 1 ? 'appeal-invalid' : 'appeal-duration'
+
+  return {
+    title: {
+      text: item.projectName
+    },
+    tag: {
+      text: typeText,
+      when: typeWhen,
+      matchers: [
+        { when: 'appeal-invalid', type: 3 as const },
+        { when: 'appeal-duration', type: 2 as const }
+      ]
+    },
+    rows: [
+      [{ text: `负责人：${item.responsibleName || '-'}` }],
+      [{ text: `签到：${formatActualTime(item.actualCheckInTime)}` }, { text: `签退：${formatActualTime(item.actualCheckOutTime)}` }]
+    ],
+    buttonRows: [[
+      {
+        text: '发起申请',
+        type: 1 as const,
+        onTap: async () => {
+          openAppealModal(item)
+        }
+      }
+    ]]
+  }
+}
+
+const appealRecordItems = computed<ProjectRecordItem[]>(() => {
+  return appealTargets.value.map((item) => ({
+    id: item.participantId,
+    card: buildAppealTargetCard(item)
+  }))
+})
+
 const loadAppealTargets = async () => {
   loadingTargets.value = true
+  errorMessage.value = ''
   try {
     const data = await fetchAppealTargets(appealTypeFilter.value === 0 ? {} : { type: appealTypeFilter.value })
     appealTargets.value = data.items
-    appealTargetIndex.value = 0
   } catch {
     appealTargets.value = []
-    uni.showToast({ title: '可申请对象加载失败', icon: 'none' })
+    errorMessage.value = '可申请对象加载失败，请下拉重试'
   } finally {
     loadingTargets.value = false
   }
 }
 
-const setAppealTypeFilter = async (type: 0 | AppealTargetType) => {
-  if (appealTypeFilter.value === type || loadingTargets.value) {
+const onAppealTypeFilterChange = async (value: string) => {
+  const nextType = value === 'all' ? 0 : (Number(value) as AppealTargetType)
+  if (appealTypeFilter.value === nextType || loadingTargets.value) {
     return
   }
 
-  appealTypeFilter.value = type
+  appealTypeFilter.value = nextType
   await loadAppealTargets()
-}
-
-const onAppealTargetChange = (event: { detail: { value: string } }) => {
-  appealTargetIndex.value = Number(event.detail.value)
 }
 
 const hasPendingAppealForProject = async (projectName: string) => {
@@ -156,12 +222,28 @@ const hasPendingAppealForProject = async (projectName: string) => {
   return false
 }
 
+const openAppealModal = (item: AppealTargetItem) => {
+  activeTarget.value = item
+  resetForm()
+  showAppealModal.value = true
+}
+
+const closeAppealModal = () => {
+  if (submitting.value) {
+    return
+  }
+
+  showAppealModal.value = false
+  activeTarget.value = null
+  resetForm()
+}
+
 const submitAppeal = async () => {
   if (submitting.value) {
     return
   }
 
-  const selected = appealTargets.value[appealTargetIndex.value]
+  const selected = activeTarget.value
   if (!selected) {
     uni.showToast({ title: '请选择可申请对象', icon: 'none' })
     return
@@ -194,7 +276,7 @@ const submitAppeal = async () => {
     })
 
     uni.showToast({ title: '申请已提交', icon: 'none' })
-    resetForm()
+    closeAppealModal()
     await loadAppealTargets()
   } catch {
     uni.showToast({ title: '申请提交失败', icon: 'none' })
@@ -215,6 +297,8 @@ useAuthGuard({
   },
   onAuthorized: async () => {
     resetForm()
+    activeTarget.value = null
+    showAppealModal.value = false
     appealTypeFilter.value = 0
     await loadAppealTargets()
   }
@@ -227,122 +311,136 @@ onPullDownRefresh(async () => {
 </script>
 
 <style scoped lang="scss">
-.container {
+.page {
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8fafc 0%, #f3f4f6 100%);
-  isolation: isolate;
-  padding: 26rpx 24rpx calc(36rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
+  background:
+    radial-gradient(circle at top left, rgba(245, 224, 157, 0.55), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(92, 119, 255, 0.12), transparent 32%),
+    linear-gradient(180deg, #f7f6ef 0%, #f4f1e6 100%);
 }
 
-.card {
+.content {
   position: relative;
   z-index: 1;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1rpx solid rgba(255, 255, 255, 0.75);
-  border-radius: 24rpx;
-  padding: 24rpx;
-  box-shadow: 0 10rpx 24rpx rgba(15, 23, 42, 0.08);
-}
-
-.card-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #2b7a78;
-  margin-bottom: 20rpx;
-}
-
-.form-item {
-  margin-bottom: 16rpx;
-}
-
-.form-label {
-  display: block;
-  font-size: 22rpx;
-  color: #4b5563;
-  margin-bottom: 8rpx;
-}
-
-.segmented {
-  display: flex;
-  gap: 10rpx;
-  flex-wrap: wrap;
-}
-
-.segmented-item {
-  flex: 1;
-  min-width: 150rpx;
-  min-height: 64rpx;
-  border-radius: 10rpx;
-  border: 1rpx solid #d1d5db;
-  background: #f8fafc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #4b5563;
-  font-size: 22rpx;
-}
-
-.segmented-item.active {
-  color: #ffffff;
-  border-color: transparent;
-  background: linear-gradient(135deg, #2b7a78 0%, #256f6d 100%);
-}
-
-.picker-value,
-.textarea {
-  width: 100%;
-  border: 1rpx solid #d1d5db;
-  border-radius: 12rpx;
+  min-height: 100vh;
+  padding: 24rpx 0 calc(220rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
-  padding: 16rpx;
-  background: #f9fafb;
-  color: #111827;
-  font-size: 22rpx;
-  min-height: 64rpx;
-}
-
-.textarea {
-  min-height: 176rpx;
-}
-
-.placeholder {
-  color: #9ca3af;
-}
-
-.state-row {
-  padding: 10rpx 0 14rpx;
-  text-align: center;
-  font-size: 22rpx;
-  color: #6b7280;
 }
 
 .actions {
-  margin-top: 10rpx;
+  margin: -12rpx 24rpx 0;
   display: flex;
-  gap: 16rpx;
 }
 
 .btn {
-  flex: 1;
+  margin: 0;
+  width: 100%;
+  height: 66rpx;
   border: none;
-  border-radius: 12rpx;
-  color: #ffffff;
-  font-size: 24rpx;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+  line-height: 66rpx;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn::after {
+  border: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #2b7a78 0%, #256f6d 100%);
-}
-
-.btn-secondary {
-  background: #6b7280;
+  color: #422006;
+  background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
 }
 
 .btn[disabled] {
   opacity: 0.6;
+}
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.modal {
+  width: 100%;
+  max-width: 680rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.22);
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.modal-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16rpx;
+}
+
+.modal-item {
+  margin-bottom: 16rpx;
+}
+
+.modal-label {
+  display: block;
+  font-size: 24rpx;
+  color: #6b7280;
+  margin-bottom: 8rpx;
+}
+
+.modal-readonly,
+.modal-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 10rpx;
+  border: 1rpx solid #d1d5db;
+  background: #ffffff;
+  padding: 0 12rpx;
+  font-size: 24rpx;
+  color: #111827;
+  min-height: 68rpx;
+  box-shadow:
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.96),
+    0 6rpx 16rpx rgba(15, 23, 42, 0.06);
+}
+
+.modal-readonly {
+  display: flex;
+  align-items: center;
+  color: #334155;
+  font-weight: 600;
+}
+
+.modal-textarea {
+  min-height: 176rpx;
+  padding-top: 16rpx;
+  padding-bottom: 16rpx;
+}
+
+.modal-actions {
+  margin-top: 20rpx;
+  display: flex;
+  gap: 12rpx;
+}
+
+.placeholder {
+  color: #9ca3af;
 }
 </style>

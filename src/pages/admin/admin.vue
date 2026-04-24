@@ -2,8 +2,8 @@
   <view class="page">
     <BackgroundGlow />
     <view class="content">
-      <view class="title">归途·桥链</view>
-      <view class="sub">“归途·桥链”青年志愿先锋队</view>
+      <view class="title">归途桥铃</view>
+      <view class="sub">“归途桥铃”青年志愿先锋队</view>
 
       <view class="user-card">
         <image class="avatar" :src="userInfo.avatar" mode="aspectFill" />
@@ -43,10 +43,6 @@
             <image class="action-icon" :src="projectManageIcon" mode="aspectFit" />
             <text class="action-text">项目管理</text>
           </view>
-          <view class="action-card" @tap="navigateTo('/pages/admin/check')">
-            <image class="action-icon" :src="checkInOutIcon" mode="aspectFit" />
-            <text class="action-text">签到签退</text>
-          </view>
         </view>
       </view>
     </view>
@@ -62,8 +58,8 @@ import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import BottomTabbar from '@/components/BottomTabbar.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
 import { useUserInfo } from '@/composables/useUserInfo'
-import { openFunctionEntry } from '@/utils/navigation'
 import { currentRole } from '@/utils/auth'
+import { openFunctionEntry } from '@/utils/navigation'
 import { getAssetUrl } from '@/utils/urls'
 
 const userInfo = useUserInfo({ fallbackName: '管理员' })
@@ -73,6 +69,7 @@ const roleTextMap: Record<number, string> = {
   2: '管理员',
   3: '超级管理员'
 }
+
 const identityText = computed(() => {
   const role = currentRole.value
   if (role === null || role === undefined) {
@@ -80,13 +77,13 @@ const identityText = computed(() => {
   }
   return roleTextMap[role] || '管理员'
 })
+
 const ADMIN_ICON_PATHS = {
   volunteerInfo: '/icons/admin-volunteer-info.svg',
   projectReview: '/icons/admin-project-review.svg',
   juvenileInfo: '/icons/admin-juvenile-info.svg',
   clockin: '/icons/admin-clockin.svg',
-  projectManage: '/icons/admin-project-manage.svg',
-  checkInOut: '/icons/admin-check-in-out.svg'
+  projectManage: '/icons/admin-project-manage.svg'
 } as const
 
 const volunteerInfoIcon = getAssetUrl(ADMIN_ICON_PATHS.volunteerInfo)
@@ -94,7 +91,6 @@ const projectReviewIcon = getAssetUrl(ADMIN_ICON_PATHS.projectReview)
 const juvenileInfoIcon = getAssetUrl(ADMIN_ICON_PATHS.juvenileInfo)
 const clockinIcon = getAssetUrl(ADMIN_ICON_PATHS.clockin)
 const projectManageIcon = getAssetUrl(ADMIN_ICON_PATHS.projectManage)
-const checkInOutIcon = getAssetUrl(ADMIN_ICON_PATHS.checkInOut)
 
 const navigateTo = (url: string) => {
   uni.navigateTo({

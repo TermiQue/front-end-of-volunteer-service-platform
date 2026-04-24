@@ -1,5 +1,5 @@
 {
-	"pages": [ 
+	"pages": [
 		{
 			"path": "pages/index/index",
 			"style": {
@@ -120,7 +120,7 @@
 		{
 			"path": "pages/admin/project-review",
 			"style": {
-				"navigationBarTitleText": "项目审核",
+				"navigationBarTitleText": "申请审批",
 				"navigationBarBackgroundColor": "#ffffff",
 				"navigationBarTextStyle": "black",
 				"backgroundColor": "#f4f1e6"
@@ -130,15 +130,6 @@
 			"path": "pages/admin/project-manage",
 			"style": {
 				"navigationBarTitleText": "项目管理",
-				"navigationBarBackgroundColor": "#ffffff",
-				"navigationBarTextStyle": "black",
-				"backgroundColor": "#f4f1e6"
-			}
-		},
-		{
-			"path": "pages/admin/check",
-			"style": {
-				"navigationBarTitleText": "签到签退",
 				"navigationBarBackgroundColor": "#ffffff",
 				"navigationBarTextStyle": "black",
 				"backgroundColor": "#f4f1e6"

@@ -3,11 +3,6 @@
     <BackgroundGlow />
 
     <view class="content">
-      <view class="toolbar">
-        <view class="toolbar-title">项目管理</view>
-        <button class="create-btn" @tap="openCreateModal">创建项目</button>
-      </view>
-
       <ProjectRecordSection
         title="项目列表"
         :items="projectRecordItems"
@@ -19,6 +14,10 @@
         empty-text="暂无符合条件的项目"
         no-more-text="没有更多了"
       >
+        <template #header-actions>
+          <button class="create-btn" @tap="openCreateModal">创建项目</button>
+        </template>
+
         <template #filters>
           <SegmentFilter :model-value="statusFilterValue" :options="statusFilterOptions" @change="onStatusFilterChange" />
 
@@ -87,19 +86,22 @@
               <PopupTimePicker v-model="createForm.endTime" title="选择结束时间" placeholder="结束时间" />
             </view>
           </view>
-          <text class="hint">时间最小单位为半小时（00分或30分）。</text>
         </view>
 
         <view class="modal-item">
-          <text class="modal-label">时长(小时，自动计算)</text>
+          <text class="modal-label">时长(自动计算)</text>
           <view class="modal-readonly">{{ durationText }}</view>
         </view>
 
         <view class="modal-item">
           <text class="modal-label">负责人</text>
-          <picker mode="selector" :range="adminUserOptions" range-key="label" :value="createResponsibleIndex" @change="onCreateResponsibleChange">
-            <view class="modal-picker">{{ selectedCreateResponsibleLabel }}</view>
-          </picker>
+          <PopupResponsiblePicker
+            v-model="createResponsibleId"
+            :options="adminUserOptions"
+            title="选择负责人"
+            placeholder="请选择负责人"
+            empty-text="暂无可选管理员"
+          />
         </view>
 
         <view class="modal-actions">
@@ -118,9 +120,13 @@
         </view>
         <view class="modal-item">
           <text class="modal-label">新负责人</text>
-          <picker mode="selector" :range="adminUserOptions" range-key="label" :value="responsibleSelectIndex" @change="onResponsibleSelectChange">
-            <view class="modal-picker">{{ selectedResponsibleLabel }}</view>
-          </picker>
+          <PopupResponsiblePicker
+            v-model="selectedResponsibleId"
+            :options="adminUserOptions"
+            title="选择新负责人"
+            placeholder="请选择负责人"
+            empty-text="暂无可选管理员"
+          />
         </view>
         <view class="modal-actions">
           <button class="btn btn-secondary" @tap="closeResponsibleModal">取消</button>
@@ -138,12 +144,31 @@
       label="时长范围"
       :max-hours="24"
     />
+
+    <view v-if="showQrModal" class="modal-mask qr-modal-mask" @tap="closeQrModal">
+      <view class="modal qr-modal" @tap.stop>
+        <view class="modal-title">{{ activeModeLabel }} - {{ activeProjectName }}</view>
+        <view class="modal-subtitle">自动轮询中（2秒/次）</view>
+
+        <view class="qr-wrap" :style="{ borderColor: currentQrColorHex }">
+          <image v-if="qrImageUrl" class="qr-image" :src="qrImageUrl" mode="aspectFit" />
+          <view v-else class="empty">正在获取二维码...</view>
+        </view>
+
+        <view class="token">{{ shortToken || '-' }}</view>
+        <view class="refresh-time">最近刷新：{{ lastRefreshAt || '-' }}</view>
+
+        <view class="modal-actions">
+          <button class="btn btn-secondary qr-close-btn" @tap="closeQrModal">关闭并停止</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+import { onHide, onPullDownRefresh, onReachBottom, onUnload } from '@dcloudio/uni-app'
 
 import BackgroundGlow from '@/components/BackgroundGlow.vue'
 import DateRangeFilter from '@/components/DateRangeFilter.vue'
@@ -152,6 +177,7 @@ import DurationRangeFilter from '@/components/DurationRangeFilter.vue'
 import DurationRangePopup from '@/components/DurationRangePopup.vue'
 import FilterInput from '@/components/FilterInput.vue'
 import PopupDateCalendar from '@/components/PopupDateCalendar.vue'
+import PopupResponsiblePicker from '@/components/PopupResponsiblePicker.vue'
 import PopupTimePicker from '@/components/PopupTimePicker.vue'
 import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
 import SegmentFilter from '@/components/SegmentFilter.vue'
@@ -165,12 +191,14 @@ import {
   exportAdminProjectParticipants,
   fetchAdminUsers,
   fetchAdminProjects,
+  fetchProjectQr,
   formatProjectDate,
   startAdminProject,
   updateAdminProjectResponsible,
   type AdminUserItem,
   type AdminProjectItem,
-  type ProjectStatus
+  type ProjectStatus,
+  type QrMode
 } from '@/utils/project'
 
 const statusOptionsAll: Array<{ label: string; value: ProjectStatus | null }> = [
@@ -200,36 +228,36 @@ const PAGE_SIZE = DEFAULT_PAGE_SIZE
 
 const showCreateModal = ref(false)
 const showResponsibleModal = ref(false)
+const showQrModal = ref(false)
 const selectedProject = ref<AdminProjectItem | null>(null)
-const responsibleSelectIndex = ref(0)
+const selectedResponsibleId = ref<number | null>(null)
 const adminUsers = ref<AdminUserItem[]>([])
-const createResponsibleIndex = ref(0)
+const createResponsibleId = ref<number | null>(null)
 const exportingProjectId = ref<number | null>(null)
+const activeProject = ref<AdminProjectItem | null>(null)
+const activeMode = ref<QrMode>('checkin')
+const activeToken = ref('')
+const lastRefreshAt = ref('')
+const qrNonce = ref(0)
 let autoQueryTimer: ReturnType<typeof setTimeout> | null = null
 let autoQueryReady = false
+let qrTimer: ReturnType<typeof setInterval> | null = null
+
+const pollIntervalMs = 2000
+const qrColors = ['#2b7a78', '#5f60e7', '#e26464', '#ea580c', '#0f766e', '#7c3aed']
+const qrColorIndex = ref(0)
 
 const adminUserOptions = computed(() =>
   adminUsers.value.map((item) => ({
-    userId: item.userId,
+    value: item.userId,
     label: `${item.name}(${item.studentId})`
   }))
 )
 
-const selectedCreateResponsibleLabel = computed(() => {
-  if (!adminUserOptions.value.length) {
-    return '暂无可选管理员'
-  }
-  return adminUserOptions.value[createResponsibleIndex.value]?.label || adminUserOptions.value[0].label
-})
-
-const selectedResponsibleLabel = computed(() => {
-  if (!adminUserOptions.value.length) {
-    return '暂无可选管理员'
-  }
-  return adminUserOptions.value[responsibleSelectIndex.value]?.label || adminUserOptions.value[0].label
-})
-
 const selectedProjectName = computed(() => selectedProject.value?.projectName || '-')
+const activeProjectName = computed(() => activeProject.value?.projectName || '-')
+const activeModeLabel = computed(() => (activeMode.value === 'checkin' ? '签到二维码' : '签退二维码'))
+const currentQrColorHex = computed(() => qrColors[qrColorIndex.value % qrColors.length])
 const isSuperAdmin = computed(() => currentRole.value === 3)
 const statusOptions = computed(() =>
   isSuperAdmin.value ? statusOptionsAll : statusOptionsAll.filter((item) => item.value !== 0)
@@ -243,6 +271,24 @@ const statusFilterOptions = computed(() =>
 const statusFilterValue = computed(() => {
   const currentValue = statusOptions.value[statusIndex.value]?.value
   return currentValue === null || currentValue === undefined ? 'all' : String(currentValue)
+})
+const qrImageUrl = computed(() => {
+  if (!activeToken.value) {
+    return ''
+  }
+
+  const token = encodeURIComponent(activeToken.value)
+  const color = colorToApiParam(currentQrColorHex.value)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=${token}&color=${color}&bgcolor=255-255-255&cb=${qrNonce.value}`
+})
+const shortToken = computed(() => {
+  if (!activeToken.value) {
+    return ''
+  }
+
+  return activeToken.value.length > 24
+    ? `${activeToken.value.slice(0, 10)}...${activeToken.value.slice(-10)}`
+    : activeToken.value
 })
 const currentUserId = computed(() => {
   const raw = uni.getStorageSync(STORAGE_KEYS.USER_CACHE)
@@ -274,6 +320,18 @@ const toMaybeNumber = (value: string) => {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const colorToApiParam = (hex: string) => {
+  const value = hex.replace('#', '')
+  if (value.length !== 6) {
+    return '43-122-120'
+  }
+
+  const r = Number.parseInt(value.slice(0, 2), 16)
+  const g = Number.parseInt(value.slice(2, 4), 16)
+  const b = Number.parseInt(value.slice(4, 6), 16)
+  return `${r}-${g}-${b}`
 }
 
 const canOperateProject = (item: AdminProjectItem) => {
@@ -372,6 +430,25 @@ const buildProjectInfoCard = (item: AdminProjectItem) => {
         type: 0 as const
       }
 
+  const qrButtons = item.status === 1
+    ? [
+        {
+          text: '签到码',
+          type: 2 as const,
+          onTap: async () => {
+            await openQrModal(item, 'checkin')
+          }
+        },
+        {
+          text: '签退码',
+          type: 4 as const,
+          onTap: async () => {
+            await openQrModal(item, 'checkout')
+          }
+        }
+      ]
+    : []
+
   return {
     title: {
       text: item.projectName
@@ -393,7 +470,12 @@ const buildProjectInfoCard = (item: AdminProjectItem) => {
         { text: `时长：${item.designVolunteerHours.toFixed(2)}h` }
       ]
     ],
-    buttonRows: [[firstButton, secondButton, thirdButton]]
+    buttonRows: qrButtons.length
+      ? [
+          [firstButton, secondButton, thirdButton],
+          qrButtons
+        ]
+      : [[firstButton, secondButton, thirdButton]]
   }
 }
 
@@ -480,14 +562,6 @@ const triggerAutoQuery = (immediate = false) => {
   }, 260)
 }
 
-const onCreateResponsibleChange = (event: { detail: { value: string } }) => {
-  createResponsibleIndex.value = Number(event.detail.value)
-}
-
-const onResponsibleSelectChange = (event: { detail: { value: string } }) => {
-  responsibleSelectIndex.value = Number(event.detail.value)
-}
-
 const buildQuery = () => ({
   status: statusOptions.value[statusIndex.value]?.value ?? undefined,
   name: queryName.value.trim() || undefined,
@@ -510,6 +584,59 @@ const appendUniqueProjects = (existing: AdminProjectItem[], incoming: AdminProje
     seen.add(item.projectId)
   })
   return next
+}
+
+const clearQrPollingTimer = () => {
+  if (qrTimer) {
+    clearInterval(qrTimer)
+    qrTimer = null
+  }
+}
+
+const refreshQr = async () => {
+  if (!activeProject.value) {
+    return
+  }
+
+  try {
+    const data = await fetchProjectQr(activeProject.value.projectId, activeMode.value)
+    const changed = activeToken.value !== data.token
+    activeToken.value = data.token
+    if (changed) {
+      qrColorIndex.value = (qrColorIndex.value + 1) % qrColors.length
+      qrNonce.value += 1
+    }
+    lastRefreshAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+  } catch {
+    uni.showToast({ title: '二维码获取失败', icon: 'none' })
+  }
+}
+
+const startQrPolling = async () => {
+  clearQrPollingTimer()
+  await refreshQr()
+  qrTimer = setInterval(() => {
+    void refreshQr()
+  }, pollIntervalMs)
+}
+
+const openQrModal = async (project: AdminProjectItem, mode: QrMode) => {
+  activeProject.value = project
+  activeMode.value = mode
+  activeToken.value = ''
+  qrColorIndex.value = 0
+  qrNonce.value = 0
+  lastRefreshAt.value = ''
+  showQrModal.value = true
+  await startQrPolling()
+}
+
+const closeQrModal = () => {
+  showQrModal.value = false
+  clearQrPollingTimer()
+  activeProject.value = null
+  activeToken.value = ''
+  lastRefreshAt.value = ''
 }
 
 const loadProjects = async (reset = false) => {
@@ -578,7 +705,7 @@ const openCreateModal = () => {
     return
   }
 
-  createResponsibleIndex.value = 0
+  createResponsibleId.value = adminUserOptions.value[0]?.value ?? null
 
   showCreateModal.value = true
 }
@@ -594,7 +721,7 @@ const resetCreateForm = () => {
   createForm.startTime = ''
   createForm.endDate = ''
   createForm.endTime = ''
-  createResponsibleIndex.value = 0
+  createResponsibleId.value = adminUserOptions.value[0]?.value ?? null
 }
 
 const submitCreate = async () => {
@@ -621,7 +748,7 @@ const submitCreate = async () => {
     return
   }
 
-  const selectedResponsible = adminUserOptions.value[createResponsibleIndex.value]
+  const selectedResponsible = adminUserOptions.value.find((item) => item.value === createResponsibleId.value)
   if (!selectedResponsible) {
     uni.showToast({ title: '请选择负责人', icon: 'none' })
     return
@@ -634,7 +761,7 @@ const submitCreate = async () => {
       startTime,
       endTime,
       durationHours: durationHours.value,
-      responsibleId: selectedResponsible.userId
+      responsibleId: Number(selectedResponsible.value)
     })
     uni.showToast({ title: '项目创建成功', icon: 'none' })
     closeCreateModal()
@@ -652,15 +779,16 @@ const openResponsibleModal = (item: AdminProjectItem) => {
   }
 
   selectedProject.value = item
-  const targetIndex = adminUserOptions.value.findIndex((option) => option.userId === item.responsibleId)
-  responsibleSelectIndex.value = targetIndex >= 0 ? targetIndex : 0
+  selectedResponsibleId.value = adminUserOptions.value.some((option) => option.value === item.responsibleId)
+    ? item.responsibleId
+    : (adminUserOptions.value[0]?.value ?? null)
   showResponsibleModal.value = true
 }
 
 const closeResponsibleModal = () => {
   showResponsibleModal.value = false
   selectedProject.value = null
-  responsibleSelectIndex.value = 0
+  selectedResponsibleId.value = null
 }
 
 const submitResponsibleUpdate = async () => {
@@ -674,13 +802,13 @@ const submitResponsibleUpdate = async () => {
     return
   }
 
-  const selectedResponsible = adminUserOptions.value[responsibleSelectIndex.value]
+  const selectedResponsible = adminUserOptions.value.find((item) => item.value === selectedResponsibleId.value)
   if (!selectedResponsible) {
     uni.showToast({ title: '请选择有效负责人', icon: 'none' })
     return
   }
 
-  const responsibleId = selectedResponsible.userId
+  const responsibleId = Number(selectedResponsible.value)
 
   try {
     await updateAdminProjectResponsible(selectedProject.value.projectId, responsibleId)
@@ -771,6 +899,14 @@ onPullDownRefresh(async () => {
   await loadProjects(true)
   uni.stopPullDownRefresh()
 })
+
+onHide(() => {
+  closeQrModal()
+})
+
+onUnload(() => {
+  closeQrModal()
+})
 </script>
 
 <style scoped lang="scss">
@@ -792,29 +928,27 @@ onPullDownRefresh(async () => {
   box-sizing: border-box;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0 24rpx 16rpx;
-}
-
-.toolbar-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #1f2937;
-}
-
 .create-btn {
   margin: 0;
   width: 200rpx;
-  height: 68rpx;
-  border-radius: 12rpx;
-  color: #fff;
-  font-size: 24rpx;
+  height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 14rpx;
+  color: #2b7a78;
+  font-size: 20rpx;
+  line-height: 1;
+  text-align: center;
   font-weight: 600;
-  border: none;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
+  border: 1rpx solid #2b7a78;
+  background: rgba(240, 253, 250, 0.92);
+  box-sizing: border-box;
+  box-shadow:
+    inset 0 0 0 2rpx #2b7a78,
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.96),
+    0 6rpx 16rpx rgba(15, 23, 42, 0.06);
 }
 
 .create-btn::after {
@@ -838,10 +972,15 @@ onPullDownRefresh(async () => {
 .btn {
   margin: 0;
   width: 156rpx;
-  height: 62rpx;
-  border-radius: 12rpx;
-  font-size: 24rpx;
+  height: 66rpx;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+  line-height: 66rpx;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
 }
 
 .btn::after {
@@ -849,8 +988,8 @@ onPullDownRefresh(async () => {
 }
 
 .btn-primary {
-  color: #fff;
-  background: linear-gradient(135deg, #2d7b7c 0%, #3ea88f 100%);
+  color: #422006;
+  background: linear-gradient(135deg, #facc15 0%, #f59e0b 100%);
 }
 
 .btn-secondary {
@@ -862,7 +1001,7 @@ onPullDownRefresh(async () => {
   position: fixed;
   inset: 0;
   z-index: 10;
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(15, 23, 42, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -872,28 +1011,32 @@ onPullDownRefresh(async () => {
 
 .modal {
   width: 100%;
-  max-width: 720rpx;
-  border-radius: 20rpx;
-  background: #fff;
+  max-width: 680rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20rpx);
+  -webkit-backdrop-filter: blur(20rpx);
+  box-shadow: 0 20rpx 48rpx rgba(15, 23, 42, 0.22);
   padding: 24rpx;
   box-sizing: border-box;
 }
 
 .modal-title {
   text-align: center;
-  font-size: 32rpx;
+  font-size: 30rpx;
   font-weight: 700;
   color: #1f2937;
-  margin-bottom: 12rpx;
+  margin-bottom: 16rpx;
 }
 
 .modal-item {
-  margin-bottom: 14rpx;
+  margin-bottom: 16rpx;
 }
 
 .modal-label {
   display: block;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #6b7280;
   margin-bottom: 8rpx;
 }
@@ -906,16 +1049,21 @@ onPullDownRefresh(async () => {
   box-sizing: border-box;
   border-radius: 10rpx;
   border: 1rpx solid #d1d5db;
-  background: #f8fafc;
-  padding: 16rpx;
+  background: #ffffff;
+  padding: 0 12rpx;
   font-size: 24rpx;
   color: #111827;
-  min-height: 64rpx;
+  min-height: 68rpx;
+  box-shadow:
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.96),
+    0 6rpx 16rpx rgba(15, 23, 42, 0.06);
 }
 
 .modal-readonly {
   color: #334155;
   font-weight: 600;
+  display: flex;
+  align-items: center;
 }
 
 .datetime-row {
@@ -930,20 +1078,66 @@ onPullDownRefresh(async () => {
 
 .modal-textarea {
   min-height: 176rpx;
-}
-
-.hint {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 20rpx;
-  color: #64748b;
+  padding-top: 16rpx;
+  padding-bottom: 16rpx;
 }
 
 .modal-actions {
-  margin-top: 12rpx;
+  margin-top: 20rpx;
   display: flex;
   justify-content: flex-end;
   gap: 12rpx;
+}
+
+.modal-subtitle {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 22rpx;
+}
+
+.qr-modal-mask {
+  z-index: 1000;
+}
+
+.qr-modal {
+  max-width: 660rpx;
+  padding: 22rpx;
+}
+
+.qr-wrap {
+  margin-top: 16rpx;
+  min-height: 480rpx;
+  border: 4rpx solid #2b7a78;
+  border-radius: 16rpx;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-image {
+  width: 480rpx;
+  height: 480rpx;
+  background: #ffffff;
+  border-radius: 10rpx;
+}
+
+.empty {
+  color: #94a3b8;
+  font-size: 24rpx;
+}
+
+.token,
+.refresh-time {
+  margin-top: 10rpx;
+  color: #475569;
+  font-size: 22rpx;
+  text-align: center;
+  word-break: break-all;
+}
+
+.qr-close-btn {
+  width: 100%;
 }
 
 .placeholder {

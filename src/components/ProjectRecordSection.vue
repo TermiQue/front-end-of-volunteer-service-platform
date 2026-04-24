@@ -1,6 +1,12 @@
 <template>
   <view class="project-record-section">
-    <view class="project-record-title">{{ title }}</view>
+    <view class="project-record-header">
+      <view class="project-record-title">{{ title }}</view>
+
+      <view v-if="$slots['header-actions']" class="project-record-header-actions">
+        <slot name="header-actions" />
+      </view>
+    </view>
 
     <view v-if="$slots.filters" class="project-record-filters-wrap">
       <slot name="filters" />
@@ -125,7 +131,9 @@ export type { ProjectRecordCard, ProjectRecordItem }
   z-index: 1;
 }
 
+.project-record-header,
 .project-record-title,
+.project-record-header-actions,
 .project-record-filters-wrap,
 .project-record-state-row,
 .project-record-load-more-row {
@@ -133,11 +141,24 @@ export type { ProjectRecordCard, ProjectRecordItem }
   z-index: 2;
 }
 
+.project-record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
 .project-record-title {
-  font-size: 28rpx;
+  flex: 1;
+  min-width: 0;
+  font-size: 34rpx;
   font-weight: 700;
   color: #2b7a78;
-  margin-bottom: 12rpx;
+}
+
+.project-record-header-actions {
+  flex: 0 0 auto;
 }
 
 .project-record-filters-wrap {
