@@ -182,8 +182,8 @@ import PopupTimePicker from '@/components/PopupTimePicker.vue'
 import ProjectRecordSection, { type ProjectRecordItem } from '@/components/ProjectRecordSection.vue'
 import SegmentFilter from '@/components/SegmentFilter.vue'
 import { useAuthGuard } from '@/composables/useAuthGuard'
-import { currentRole } from '@/utils/auth'
-import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from '@/utils/constants'
+import { currentRole, currentUserId } from '@/utils/auth'
+import { DEFAULT_PAGE_SIZE } from '@/utils/constants'
 import { openFunctionEntry } from '@/utils/navigation'
 import {
   createAdminProject,
@@ -289,19 +289,6 @@ const shortToken = computed(() => {
   return activeToken.value.length > 24
     ? `${activeToken.value.slice(0, 10)}...${activeToken.value.slice(-10)}`
     : activeToken.value
-})
-const currentUserId = computed(() => {
-  const raw = uni.getStorageSync(STORAGE_KEYS.USER_CACHE)
-  if (!raw) {
-    return 0
-  }
-
-  try {
-    const parsed = JSON.parse(raw as string) as { userId?: number; user_id?: number }
-    return parsed.userId ?? parsed.user_id ?? 0
-  } catch {
-    return 0
-  }
 })
 
 const createForm = reactive({

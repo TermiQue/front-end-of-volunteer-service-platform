@@ -1,5 +1,6 @@
 ﻿import { STORAGE_KEYS } from './constants'
 import { getApiUrl } from './urls'
+import { getSessionHooks } from './session-sync'
 
 export type ApiEnvelope<T> = {
   code: number
@@ -146,6 +147,7 @@ const clearStoredSession = () => {
   uni.removeStorageSync(STORAGE_KEYS.ACCESS_TOKEN)
   uni.removeStorageSync(STORAGE_KEYS.REFRESH_TOKEN)
   uni.removeStorageSync(STORAGE_KEYS.USER_CACHE)
+  getSessionHooks().onSessionCleared?.()
 }
 
 const getCurrentRoute = () => {
@@ -202,6 +204,10 @@ const refreshSession = async () => {
               if (result && result.code === 0 && result.data) {
                 uni.setStorageSync(STORAGE_KEYS.ACCESS_TOKEN, result.data.accessToken)
                 uni.setStorageSync(STORAGE_KEYS.REFRESH_TOKEN, result.data.refreshToken)
+                getSessionHooks().onSessionRefreshed?.({
+                  accessToken: result.data.accessToken,
+                  refreshToken: result.data.refreshToken
+                })
                 resolve(true)
                 innerResolve()
                 return
@@ -395,6 +401,38 @@ export const uploadJson = async <T>(options: UploadOptions): Promise<T> => {
 
   clearResponseCache()
   return result as T
+}
+
+export const downloadFileWithAuth = async (url: string, retry = false): Promise<string> => {
+  const result = await withHttpConcurrencyLimit(
+    () =>
+      new Promise<UniApp.DownloadSuccessData>((resolve, reject) => {
+        uni.downloadFile({
+          url: getRequestUrl(url),
+          timeout: DEFAULT_HTTP_TIMEOUT_MS,
+          header: {
+            ...buildHeaders(true)
+          },
+          success: resolve,
+          fail: reject
+        })
+      })
+  )
+
+  if (result.statusCode >= 200 && result.statusCode < 300 && result.tempFilePath) {
+    return result.tempFilePath
+  }
+
+  if (!retry && (result.statusCode === 401 || result.statusCode === 403)) {
+    const refreshed = await refreshSession()
+    if (refreshed) {
+      return downloadFileWithAuth(url, true)
+    }
+    clearStoredSession()
+    redirectToLogin()
+  }
+
+  throw new Error(`download failed: ${result.statusCode}`)
 }
 
 export const clearSessionStorage = clearStoredSession

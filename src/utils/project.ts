@@ -1,6 +1,4 @@
-import { STORAGE_KEYS } from './constants'
-import { requestJson } from './request'
-import { getApiUrl } from './urls'
+import { downloadFileWithAuth, requestJson } from './request'
 
 const LIST_QUERY_CACHE_TTL_MS = 10 * 1000
 
@@ -1147,32 +1145,15 @@ export const fetchAdminUsers = async () => {
 }
 
 export const exportAdminProjectParticipants = async (projectId: number) => {
-  const accessToken = uni.getStorageSync(STORAGE_KEYS.ACCESS_TOKEN) || ''
-  if (!accessToken) {
-    throw new Error('missing access token')
-  }
-
-  const downloadUrl = getApiUrl(`/admin/projects/${projectId}/participants/export`)
-
   return new Promise<string>((resolve, reject) => {
-    uni.downloadFile({
-      url: downloadUrl,
-      header: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      success: (res) => {
-        if (res.statusCode < 200 || res.statusCode >= 300 || !res.tempFilePath) {
-          reject(new Error(`export failed: ${res.statusCode}`))
-          return
-        }
-
+    downloadFileWithAuth(`/admin/projects/${projectId}/participants/export`)
+      .then((tempFilePath) => {
         uni.saveFile({
-          tempFilePath: res.tempFilePath,
-          success: (saveRes) => resolve(saveRes.savedFilePath || res.tempFilePath),
-          fail: () => resolve(res.tempFilePath)
+          tempFilePath,
+          success: (saveRes) => resolve(saveRes.savedFilePath || tempFilePath),
+          fail: () => resolve(tempFilePath)
         })
-      },
-      fail: (error) => reject(error)
-    })
+      })
+      .catch(reject)
   })
 }

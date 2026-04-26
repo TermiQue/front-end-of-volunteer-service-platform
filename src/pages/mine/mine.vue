@@ -55,7 +55,6 @@ import {
   currentNickname,
   currentProfile,
   currentRole,
-  ensureLoginForRoute,
   fetchCurrentUser,
   goToProfileForm,
   hasProfile,
@@ -141,7 +140,9 @@ onShow(async () => {
   try {
     await fetchCurrentUser()
   } catch {
-    ensureLoginForRoute('/pages/mine/mine')
+    if (!isLoggedIn.value) {
+      return
+    }
   }
 })
 </script>

@@ -1,6 +1,13 @@
 ﻿import { computed, ref } from 'vue'
 
-import { ApiError, clearRequestCache, clearSessionStorage, requestJson, uploadJson } from './request'
+import {
+  ApiError,
+  clearRequestCache,
+  clearSessionStorage,
+  requestJson,
+  uploadJson
+} from './request'
+import { registerSessionHooks } from './session-sync'
 import { STORAGE_KEYS } from './constants'
 import { resolveBackendRelativeUrl } from './urls'
 
@@ -81,6 +88,7 @@ const normalizeUser = (user: CurrentUser | null | undefined) => {
 export const isLoggedIn = computed(() => !!accessToken.value)
 export const hasProfile = computed(() => !!currentUser.value?.profile)
 export const currentRole = computed(() => currentUser.value?.role ?? null)
+export const currentUserId = computed(() => currentUser.value?.userId ?? 0)
 export const currentNickname = computed(() => currentUser.value?.nickname ?? '')
 export const currentAvatar = computed(() => resolvedAvatar.value || currentUser.value?.avatarUrl || '')
 export const currentProfile = computed(() => currentUser.value?.profile ?? null)
@@ -277,6 +285,18 @@ const persistState = () => {
   }
 }
 
+const applySessionTokens = (payload: { accessToken: string; refreshToken: string }) => {
+  accessToken.value = payload.accessToken
+  refreshToken.value = payload.refreshToken
+}
+
+const resetAuthMemoryState = () => {
+  accessToken.value = ''
+  refreshToken.value = ''
+  currentUser.value = null
+  resolvedAvatar.value = ''
+}
+
 export const hydrateAuthState = () => {
   accessToken.value = uni.getStorageSync(STORAGE_KEYS.ACCESS_TOKEN) || ''
   refreshToken.value = uni.getStorageSync(STORAGE_KEYS.REFRESH_TOKEN) || ''
@@ -295,9 +315,20 @@ export const hydrateAuthState = () => {
   void syncResolvedAvatar()
 }
 
+registerSessionHooks({
+  onSessionRefreshed: ({ accessToken: nextAccessToken, refreshToken: nextRefreshToken }) => {
+    applySessionTokens({
+      accessToken: nextAccessToken,
+      refreshToken: nextRefreshToken
+    })
+  },
+  onSessionCleared: () => {
+    resetAuthMemoryState()
+  }
+})
+
 export const setSession = (payload: { accessToken: string; refreshToken: string; user?: CurrentUser | null }) => {
-  accessToken.value = payload.accessToken
-  refreshToken.value = payload.refreshToken
+  applySessionTokens(payload)
   currentUser.value = normalizeUser(payload.user)
   clearRequestCache()
   persistState()
@@ -311,10 +342,7 @@ export const setCurrentUser = (user: CurrentUser | null) => {
 }
 
 export const clearAuthState = () => {
-  accessToken.value = ''
-  refreshToken.value = ''
-  currentUser.value = null
-  resolvedAvatar.value = ''
+  resetAuthMemoryState()
   clearRequestCache()
   clearSessionStorage()
   persistState()
